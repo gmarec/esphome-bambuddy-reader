@@ -95,6 +95,66 @@ bambuddy_api_key: "your_bambuddy_api_key"
 
 If BambuBuddy is not configured, set `bambuddy_url` to any non-HTTP value (e.g. `disabled`) and the sync icon will remain grey.
 
+### Configuration
+
+Copy `spool-reader.yaml` as your starting point — it already includes all the package references and settings for the Waveshare ESP32-S3:
+
+```yaml
+substitutions:
+  bambuddy_url: !secret bambuddy_url
+  bambuddy_api_key: !secret bambuddy_api_key
+
+esphome:
+  name: spool-reader
+  friendly_name: spool-reader
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/BluetriX/esphome-CST328-Touch
+    components: [cst328]
+
+logger:
+
+api:
+  encryption:
+    key: !secret spool_reader_api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret spool_reader_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Spool-Reader Fallback Hotspot"
+    password: !secret spool_reader_ap_password
+
+captive_portal:
+
+packages:
+  display: !include spool-reader/hw-display.yaml
+  fonts: !include spool-reader/ui-fonts.yaml
+  nfc: !include spool-reader/hw-nfc.yaml
+  bambuddy: !include spool-reader/api-bambuddy.yaml
+  styles: !include spool-reader/ui-styles.yaml
+  page_idle: !include spool-reader/page-idle.yaml
+  page_filament: !include spool-reader/page-filament.yaml
+  page_details: !include spool-reader/page-details.yaml
+  triggers: !include spool-reader/pages-triggers.yaml
+```
+
 ### Flashing
 
 ```bash
