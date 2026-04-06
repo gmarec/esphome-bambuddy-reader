@@ -1,0 +1,120 @@
+lvgl:
+  pages:
+    - id: page_filament
+      styles: style_page
+      widgets:
+        # Bandeau couleur
+        - obj:
+            id: color_banner
+            x: 0
+            y: 0
+            width: 240
+            height: 200
+            radius: 0
+            bg_color: 0x808080
+            bg_opa: COVER
+            border_width: 0
+            scrollbar_mode: "OFF"
+            clickable: false
+            pad_all: 0
+            widgets:
+              # Cercle foncé
+              - obj:
+                  id: color_circle
+                  align: CENTER
+                  y: -25
+                  width: 90
+                  height: 90
+                  radius: 45
+                  bg_color: 0x606060
+                  bg_opa: COVER
+                  border_width: 3
+                  border_color: 0x909090
+                  scrollbar_mode: "OFF"
+              # Type espacé
+              - label:
+                  id: lbl_type_spaced
+                  align: CENTER
+                  y: 40
+                  width: 220
+                  text: "--"
+                  text_color: 0xFFFFFF
+                  text_font: font_small
+                  text_align: CENTER
+              # Nom couleur
+              - label:
+                  id: lbl_color_name
+                  align: CENTER
+                  y: 58
+                  width: 220
+                  text: "--"
+                  text_color: 0xFFFFFF
+                  text_font: font_large
+                  text_align: CENTER
+              # Poids restant Bambuddy
+              - label:
+                  id: lbl_remaining
+                  align: CENTER
+                  y: 80
+                  width: 220
+                  text: ""
+                  text_color: 0xFFFFFF
+                  text_font: font_small
+                  text_align: CENTER
+        # Bouton Détails
+        - obj:
+            x: 16
+            y: 212
+            width: 208
+            height: 42
+            styles: style_btn_dark
+            on_press:
+              then:
+                - lvgl.page.show: page_details
+            widgets:
+              - label:
+                  align: LEFT_MID
+                  text: "Détails"
+                  text_color: 0xFFFFFF
+                  text_font: font_small
+              - label:
+                  align: RIGHT_MID
+                  text: "\U000F0142"
+                  text_color: 0x888888
+                  text_font: font_small
+        # Bouton Ajouter dans Bambuddy (visible si bobine introuvable)
+        - obj:
+            id: btn_add_bambuddy
+            align: BOTTOM_LEFT
+            x: 16
+            y: -12
+            width: 100
+            height: 42
+            hidden: true
+            styles: style_btn_outline_green
+            on_click:
+              then:
+                - script.execute: bambuddy_add_spool
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "Ajouter"
+                  text_color: 0x00AE42
+                  text_font: font_small
+        # Bouton Fermer
+        - obj:
+            align: BOTTOM_RIGHT
+            x: -16
+            y: -12
+            width: 100
+            height: 42
+            styles: style_btn_outline_green
+            on_press:
+              then:
+                - lvgl.page.show: page_idle
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "Fermer"
+                  text_color: 0x00AE42
+                  text_font: font_small

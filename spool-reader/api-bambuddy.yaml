@@ -1,0 +1,179 @@
+http_request:
+  useragent: "ESPHome/BambuReader"
+  timeout: 10s
+
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          if (std::string("${bambuddy_url}").find("http") == 0) {
+            lv_label_set_text(id(lbl_sync_icon), "\U000F04E6");
+            lv_obj_set_style_text_color(id(lbl_sync_icon), lv_color_hex(0x00AE42), 0);
+          }
+
+globals:
+  - id: bb_tray_uid
+    type: std::string
+    initial_value: '""'
+  - id: bb_spool_id
+    type: int
+    initial_value: "0"
+  - id: bb_spool_found
+    type: bool
+    initial_value: "false"
+  - id: bb_error
+    type: bool
+    initial_value: "false"
+
+sensor:
+  - platform: template
+    id: bb_remaining_weight
+    name: "Poids restant"
+    unit_of_measurement: "g"
+    icon: mdi:weight-gram
+    accuracy_decimals: 0
+
+script:
+  - id: bambuddy_sync
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return std::string("${bambuddy_url}").find("http") == 0;'
+          then:
+            - lambda: |-
+                id(bb_tray_uid) = id(tray_uid_sens).state;
+                id(bb_spool_found) = false;
+                id(bb_spool_id) = 0;
+                id(bb_error) = false;
+                ESP_LOGI("bambuddy", "Recherche bobine: %s", id(bb_tray_uid).c_str());
+
+            # 1. POST tag-scanned → matched + spool_id
+            - http_request.post:
+                url: "${bambuddy_url}/api/v1/spoolbuddy/nfc/tag-scanned"
+                request_headers:
+                  Content-Type: application/json
+                  X-API-Key: "${bambuddy_api_key}"
+                json: |-
+                  root["device_id"] = "esphome-spool-reader";
+                  root["tag_uid"] = id(card_uid_sens).state;
+                  root["tray_uuid"] = id(bb_tray_uid);
+                capture_response: true
+                max_response_buffer_size: 512
+                on_response:
+                  then:
+                    - lambda: |-
+                        if (response->status_code != 200) {
+                          ESP_LOGW("bambuddy", "tag-scanned failed: %d", response->status_code);
+                          id(bb_error) = true;
+                          return;
+                        }
+                        if (body.find("\"matched\":true") != std::string::npos) {
+                          size_t pos = body.find("\"spool_id\":");
+                          if (pos != std::string::npos) {
+                            id(bb_spool_id) = atoi(body.c_str() + pos + 11);
+                            id(bb_spool_found) = true;
+                            ESP_LOGI("bambuddy", "Bobine trouvée, id=%d", id(bb_spool_id));
+                          }
+                        } else {
+                          ESP_LOGI("bambuddy", "Bobine introuvable");
+                          id(bb_remaining_weight).publish_state(NAN);
+                          lv_obj_clear_flag(id(btn_add_bambuddy), LV_OBJ_FLAG_HIDDEN);
+                        }
+                on_error:
+                  then:
+                    - lambda: 'id(bb_error) = true;'
+                    - logger.log:
+                        level: WARN
+                        tag: bambuddy
+                        format: "tag-scanned POST failed (erreur réseau)"
+
+            # 2. Si trouvée, récupérer les détails de la bobine
+            - if:
+                condition:
+                  lambda: 'return id(bb_spool_found) && id(bb_spool_id) > 0;'
+                then:
+                  - http_request.get:
+                      url: !lambda |-
+                        return std::string("${bambuddy_url}/api/v1/inventory/spools/") + std::to_string(id(bb_spool_id));
+                      request_headers:
+                        X-API-Key: "${bambuddy_api_key}"
+                      capture_response: true
+                      max_response_buffer_size: 4096
+                      on_response:
+                        then:
+                          - lambda: |-
+                              if (response->status_code != 200) {
+                                ESP_LOGW("bambuddy", "GET spool/%d failed: %d", id(bb_spool_id), response->status_code);
+                                return;
+                              }
+                              size_t wu_pos = body.find("\"weight_used\":");
+                              if (wu_pos != std::string::npos) {
+                                float wu = atof(body.c_str() + wu_pos + 14);
+                                float rw = 1000.0f - wu;
+                                id(bb_remaining_weight).publish_state(rw);
+                                char buf[16];
+                                snprintf(buf, sizeof(buf), "%.0f g", rw);
+                                lv_label_set_text(id(lbl_remaining), buf);
+                                lv_obj_set_style_text_color(id(lbl_remaining),
+                                  lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF), 0);
+                                lv_label_set_text(id(lbl_detail_remaining), buf);
+                                lv_obj_add_flag(id(btn_add_bambuddy), LV_OBJ_FLAG_HIDDEN);
+                                ESP_LOGI("bambuddy", "Restant: %.0fg (utilisé: %.0fg)", rw, wu);
+                              } else {
+                                lv_label_set_text(id(lbl_remaining), "Poids indisponible");
+                                lv_obj_set_style_text_color(id(lbl_remaining),
+                                  lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF), 0);
+                                lv_label_set_text(id(lbl_detail_remaining), "Poids indisponible");
+                                ESP_LOGI("bambuddy", "weight_used introuvable");
+                              }
+
+  - id: bambuddy_add_spool
+    mode: single
+    then:
+      - lvgl.widget.update:
+          id: btn_add_bambuddy
+          hidden: true
+      - http_request.post:
+          url: "${bambuddy_url}/api/v1/inventory/spools"
+          request_headers:
+            Content-Type: application/json
+            X-API-Key: "${bambuddy_api_key}"
+          json: |-
+            root["material"] = id(filament_type_sens).state;
+            root["subtype"] = id(filament_subtype_sens).state;
+            root["color_name"] = id(filament_color_name_sens).state;
+            std::string hex = id(filament_color_sens).state;
+            if (!hex.empty() && hex[0] == '#') hex = hex.substr(1);
+            root["rgba"] = hex + "FF";
+            root["brand"] = "Bambu Lab";
+            root["label_weight"] = 1000;
+            root["core_weight"] = 216;
+            root["slicer_filament"] = id(tray_info_idx_sens).state;
+            std::string slicer_name = std::string("Bambu ") + id(filament_type_sens).state;
+            auto sub = id(filament_subtype_sens).state;
+            if (!sub.empty()) slicer_name += " " + sub;
+            root["slicer_filament_name"] = slicer_name;
+            root["nozzle_temp_min"] = (int)id(min_hotend_temp_sens).state;
+            root["nozzle_temp_max"] = (int)id(max_hotend_temp_sens).state;
+            root["tag_uid"] = id(card_uid_sens).state;
+            root["tray_uuid"] = id(bb_tray_uid);
+            root["data_origin"] = "esp-reader";
+            root["tag_type"] = "bambulab";
+          capture_response: true
+          max_response_buffer_size: 2048
+          on_response:
+            then:
+              - lambda: |-
+                  if (response->status_code == 200 || response->status_code == 201) {
+                    ESP_LOGI("bambuddy", "Bobine créée avec succès");
+                    lv_label_set_text(id(lbl_remaining), "1000 g");
+                    lv_obj_set_style_text_color(id(lbl_remaining),
+                      lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF), 0);
+                    lv_label_set_text(id(lbl_detail_remaining), "1000 g");
+                    id(bb_remaining_weight).publish_state(1000.0f);
+                  } else {
+                    ESP_LOGW("bambuddy", "Création bobine failed: %d — %s", response->status_code, body.c_str());
+                    lv_obj_clear_flag(id(btn_add_bambuddy), LV_OBJ_FLAG_HIDDEN);
+                  }

@@ -1,0 +1,204 @@
+## PAGE: details
+lvgl:
+  pages:
+    - id: page_details
+      styles: style_page
+      widgets:
+        # Header (fond légèrement plus clair)
+        - obj:
+            x: 0
+            y: 0
+            width: 240
+            height: 55
+            bg_color: 0x1A1A1A
+            bg_opa: COVER
+            border_width: 0
+            scrollbar_mode: "OFF"
+            pad_all: 0
+            widgets:
+              - obj:
+                  id: detail_circle
+                  x: 16
+                  y: 15
+                  width: 22
+                  height: 22
+                  radius: 11
+                  bg_color: 0x808080
+                  bg_opa: COVER
+                  border_width: 0
+                  scrollbar_mode: "OFF"
+              - label:
+                  id: lbl_detail_header
+                  x: 46
+                  y: 12
+                  text: "--"
+                  text_color: 0xFFFFFF
+                  text_font: font_small
+              - label:
+                  id: lbl_detail_tray_uid
+                  x: 46
+                  y: 30
+                  text: "--"
+                  text_color: 0x888888
+                  text_font: font_tiny
+        # Séparateur header
+        - obj:
+            x: 0
+            y: 55
+            width: 240
+            height: 1
+            styles: style_separator
+        # Zone scrollable
+        - obj:
+            x: 0
+            y: 60
+            width: 240
+            height: 210
+            bg_opa: TRANSP
+            border_width: 0
+            pad_left: 16
+            pad_right: 16
+            pad_top: 0
+            pad_bottom: 12
+            layout:
+              type: FLEX
+              flex_flow: COLUMN
+            widgets:
+              # Type
+              - obj:
+                  width: 208
+                  height: 38
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Type"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_type
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 208
+                  height: 1
+                  styles: style_separator
+              # Couleur
+              - obj:
+                  width: 208
+                  height: 38
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Couleur"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_color
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 208
+                  height: 1
+                  styles: style_separator
+              # Code hex
+              - obj:
+                  width: 208
+                  height: 38
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Code hex"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_hex
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 208
+                  height: 1
+                  styles: style_separator
+              # Buse
+              - obj:
+                  width: 208
+                  height: 38
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Buse"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_hotend
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 208
+                  height: 1
+                  styles: style_separator
+              # Poids
+              - obj:
+                  width: 208
+                  height: 38
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Poids"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_weight
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 208
+                  height: 1
+                  styles: style_separator
+              # Restant (Spoolman)
+              - obj:
+                  width: 208
+                  height: 38
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Restant"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_remaining
+                        align: RIGHT_MID
+                        text: ""
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+        # Bouton Retour — fixe en bas
+        - obj:
+            align: BOTTOM_MID
+            y: -12
+            width: 208
+            height: 42
+            styles: style_btn_dark
+            on_press:
+              then:
+                - lvgl.page.show: page_filament
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "Retour"
+                  text_color: 0xFFFFFF
+                  text_font: font_small

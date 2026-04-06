@@ -1,0 +1,125 @@
+# NFC → UI triggers
+
+globals:
+  - id: parsed_color
+    type: uint32_t
+    initial_value: "0x808080"
+  - id: color_lum
+    type: float
+    initial_value: "0.5"
+
+bambu_nfc:
+  on_bambu_success:
+    then:
+      # Reset poids restant + bouton ajout
+      - lvgl.label.update:
+          id: lbl_remaining
+          text: ""
+      - lvgl.label.update:
+          id: lbl_detail_remaining
+          text: ""
+      - lvgl.widget.update:
+          id: btn_add_bambuddy
+          hidden: true
+      # Parser la couleur une seule fois
+      - lambda: |-
+          auto hex = id(filament_color_sens).state;
+          if (hex.length() >= 7) {
+            id(parsed_color) = strtol(hex.c_str() + 1, NULL, 16);
+          } else {
+            id(parsed_color) = 0x808080;
+          }
+          uint32_t c = id(parsed_color);
+          id(color_lum) = (0.299f * ((c >> 16) & 0xFF) + 0.587f * ((c >> 8) & 0xFF) + 0.114f * (c & 0xFF)) / 255.0f;
+      # Couleur bandeau
+      - lvgl.widget.update:
+          id: color_banner
+          bg_color: !lambda 'return lv_color_hex(id(parsed_color));'
+      # Cercle assombri
+      - lvgl.widget.update:
+          id: color_circle
+          bg_color: !lambda |-
+            uint32_t c = id(parsed_color);
+            return lv_color_make(((c >> 16) & 0xFF) * 2 / 3, ((c >> 8) & 0xFF) * 2 / 3, (c & 0xFF) * 2 / 3);
+          border_color: !lambda |-
+            uint32_t c = id(parsed_color);
+            if (id(color_lum) < 0.35f)
+              return lv_color_make(180, 180, 180);
+            return lv_color_make(((c >> 16) & 0xFF) / 2, ((c >> 8) & 0xFF) / 2, (c & 0xFF) / 2);
+      # Type espacé + sous-type + contraste auto
+      - lvgl.label.update:
+          id: lbl_type_spaced
+          text: !lambda |-
+            auto type = id(filament_type_sens).state;
+            std::string spaced;
+            for (size_t i = 0; i < type.length(); i++) {
+              if (i > 0) spaced += ' ';
+              spaced += toupper(type[i]);
+            }
+            auto sub = id(filament_subtype_sens).state;
+            if (!sub.empty()) {
+              spaced += "  ·  ";
+              spaced += sub;
+            }
+            return spaced.c_str();
+          text_color: !lambda 'return lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF);'
+      # Nom couleur + contraste auto
+      - lvgl.label.update:
+          id: lbl_color_name
+          text: !lambda 'return id(filament_color_name_sens).state.c_str();'
+          text_color: !lambda 'return lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF);'
+      # Détails — cercle
+      - lvgl.widget.update:
+          id: detail_circle
+          bg_color: !lambda 'return lv_color_hex(id(parsed_color));'
+      # Détails — header
+      - lvgl.label.update:
+          id: lbl_detail_header
+          text: !lambda |-
+            auto t = id(filament_type_sens).state;
+            auto s = id(filament_subtype_sens).state;
+            if (!s.empty()) t += " · " + s;
+            return t.c_str();
+      # Détails — valeurs
+      - lvgl.label.update:
+          id: lbl_detail_type
+          text: !lambda 'return id(filament_type_sens).state.c_str();'
+      - lvgl.label.update:
+          id: lbl_detail_color
+          text: !lambda 'return id(filament_color_name_sens).state.c_str();'
+      - lvgl.label.update:
+          id: lbl_detail_hex
+          text: !lambda 'return id(filament_color_sens).state.c_str();'
+      - lvgl.label.update:
+          id: lbl_detail_hotend
+          text: !lambda |-
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0f - %.0f°C",
+              id(min_hotend_temp_sens).state, id(max_hotend_temp_sens).state);
+            return std::string(buf).c_str();
+      - lvgl.label.update:
+          id: lbl_detail_weight
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.0f g", id(spool_weight_sens).state);
+            return std::string(buf).c_str();
+      - lvgl.label.update:
+          id: lbl_detail_tray_uid
+          text: !lambda |-
+            auto uid = id(tray_uid_sens).state;
+            if (uid.length() > 12) return (uid.substr(0, 6) + "..." + uid.substr(uid.length() - 6)).c_str();
+            return uid.c_str();
+      # Afficher page filament
+      - lvgl.page.show: page_filament
+      # Sync BambuBuddy
+      - script.execute: bambuddy_sync
+  on_bambu_error:
+    then:
+      - lvgl.page.show: page_idle
+      - lvgl.label.update:
+          id: error_label
+          text: "Erreur de lecture"
+      - delay: 3s
+      - lvgl.label.update:
+          id: error_label
+          text: ""

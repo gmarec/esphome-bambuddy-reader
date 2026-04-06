@@ -1,0 +1,45 @@
+## DISPLAY
+spi:
+  - id: display_spi
+    clk_pin: GPIO40
+    mosi_pin: GPIO45
+
+i2c:
+  - id: touch_i2c
+    sda: GPIO1
+    scl: GPIO3
+
+touchscreen:
+  - platform: cst328
+    id: my_touchscreen
+    i2c_id: touch_i2c
+    interrupt_pin: GPIO4
+    reset_pin: GPIO2
+
+display:
+  - platform: ili9xxx
+    id: my_display
+    model: st7789v
+    dimensions:
+      width: 240
+      height: 320
+    cs_pin: GPIO42
+    dc_pin: GPIO41
+    reset_pin: GPIO39
+    spi_id: display_spi
+    invert_colors: true
+    auto_clear_enabled: false
+    update_interval: never
+
+output:
+  - platform: ledc
+    pin: GPIO5
+    id: backlight_output
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: "Luminosité"
+    id: backlight
+    restore_mode: ALWAYS_ON
+    entity_category: config
