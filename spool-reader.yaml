@@ -42,16 +42,16 @@ wifi:
   ap:
     ssid: "Spool-Reader Fallback Hotspot"
     password: !secret spool_reader_ap_password
-    
+
 captive_portal:
 
 packages:
-  display: !include spool-reader/hw-display.yaml
-  fonts: !include spool-reader/ui-fonts.yaml
-  nfc: !include spool-reader/hw-nfc.yaml
-  bambuddy: !include spool-reader/api-bambuddy.yaml
-  styles: !include spool-reader/ui-styles.yaml
-  page_idle: !include spool-reader/page-idle.yaml
-  page_filament: !include spool-reader/page-filament.yaml
-  page_details: !include spool-reader/page-details.yaml
-  triggers: !include spool-reader/pages-triggers.yaml
+  display: github://bemble/esphome-bambuddy-reader/spool-reader/hw-display.yaml
+  fonts: github://bemble/esphome-bambuddy-reader/spool-reader/ui-fonts.yaml
+  nfc: github://bemble/esphome-bambuddy-reader/spool-reader/hw-nfc.yaml
+  bambuddy: github://bemble/esphome-bambuddy-reader/spool-reader/api-bambuddy.yaml
+  styles: github://bemble/esphome-bambuddy-reader/spool-reader/ui-styles.yaml
+  page_idle: github://bemble/esphome-bambuddy-reader/spool-reader/page-idle.yaml
+  page_filament: github://bemble/esphome-bambuddy-reader/spool-reader/page-filament.yaml
+  page_details: github://bemble/esphome-bambuddy-reader/spool-reader/page-details.yaml
+  triggers: github://bemble/esphome-bambuddy-reader/spool-reader/pages-triggers.yaml
