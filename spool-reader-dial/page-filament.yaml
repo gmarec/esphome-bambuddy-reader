@@ -1,0 +1,81 @@
+## Fiche filament : disque plein de la couleur du tag
+lvgl:
+  pages:
+    - id: page_filament
+      styles: style_page
+      widgets:
+        - obj:
+            id: color_banner
+            align: CENTER
+            width: 240
+            height: 240
+            radius: 120
+            bg_color: 0x808080
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            scrollbar_mode: "OFF"
+            clickable: true
+            on_click:
+              then:
+                - lambda: 'id(current_page) = 2;'
+                - lvgl.page.show: page_details
+            widgets:
+              - obj:
+                  id: color_circle
+                  align: CENTER
+                  y: -52
+                  width: 66
+                  height: 66
+                  radius: 33
+                  bg_color: 0x606060
+                  bg_opa: COVER
+                  border_width: 3
+                  border_color: 0x909090
+                  clickable: false
+              - label:
+                  id: lbl_type_spaced
+                  align: CENTER
+                  y: 4
+                  width: 200
+                  text: "--"
+                  text_color: 0xFFFFFF
+                  text_font: font_small
+                  text_align: CENTER
+              - label:
+                  id: lbl_color_name
+                  align: CENTER
+                  y: 28
+                  width: 196
+                  long_mode: DOT
+                  text: "--"
+                  text_color: 0xFFFFFF
+                  text_font: font_large
+                  text_align: CENTER
+              - label:
+                  id: lbl_remaining
+                  align: CENTER
+                  y: 54
+                  width: 180
+                  text: ""
+                  text_color: 0xFFFFFF
+                  text_font: font_small
+                  text_align: CENTER
+              # Visible si la bobine est inconnue de Bambuddy (tap ou appui long)
+              - obj:
+                  id: btn_add_bambuddy
+                  align: CENTER
+                  y: 84
+                  width: 104
+                  height: 30
+                  hidden: true
+                  styles: style_btn_outline_green
+                  on_click:
+                    then:
+                      - script.execute: bambuddy_add_spool
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "Ajouter"
+                        text_color: 0x00AE42
+                        text_font: font_small

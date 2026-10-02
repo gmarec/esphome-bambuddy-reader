@@ -1,0 +1,86 @@
+## Navigation encodeur + bouton
+# Page courante : 0 = attente, 1 = filament, 2 = details
+globals:
+  - id: current_page
+    type: int
+    initial_value: "0"
+
+sensor:
+  - platform: rotary_encoder
+    id: dial_encoder
+    internal: true
+    pin_a:
+      number: GPIO40
+      mode:
+        input: true
+        pullup: true
+    pin_b:
+      number: GPIO41
+      mode:
+        input: true
+        pullup: true
+    on_clockwise:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(current_page) == 2;'
+            then:
+              - lambda: 'lv_obj_scroll_by_bounded(id(details_list), 0, -28, LV_ANIM_ON);'
+            else:
+              - if:
+                  condition:
+                    lambda: 'return id(current_page) == 1;'
+                  then:
+                    - lambda: 'id(current_page) = 2;'
+                    - lvgl.page.show: page_details
+    on_anticlockwise:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(current_page) == 2;'
+            then:
+              - lambda: 'lv_obj_scroll_by_bounded(id(details_list), 0, 28, LV_ANIM_ON);'
+
+binary_sensor:
+  - platform: gpio
+    id: dial_button
+    internal: true
+    pin:
+      number: GPIO42
+      inverted: true   # retirer si l'appui est detecte a l'envers
+      mode:
+        input: true
+        pullup: true
+    on_click:
+      # Appui court : filament <-> details
+      - min_length: 30ms
+        max_length: 600ms
+        then:
+          - if:
+              condition:
+                lambda: 'return id(current_page) == 1;'
+              then:
+                - lambda: 'id(current_page) = 2;'
+                - lvgl.page.show: page_details
+              else:
+                - if:
+                    condition:
+                      lambda: 'return id(current_page) == 2;'
+                    then:
+                      - lambda: 'id(current_page) = 1;'
+                      - lvgl.page.show: page_filament
+      # Appui long : ajout Bambuddy si bobine inconnue, sinon retour a l'accueil
+      - min_length: 900ms
+        max_length: 5s
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  return id(current_page) == 1 &&
+                         !lv_obj_has_flag(id(btn_add_bambuddy), LV_OBJ_FLAG_HIDDEN);
+              then:
+                - script.execute: bambuddy_add_spool
+                - rtttl.play: "add:d=16,o=6,b=200:c,e,g"
+              else:
+                - lambda: 'id(current_page) = 0;'
+                - lvgl.page.show: page_idle

@@ -1,0 +1,68 @@
+## NFC — WS1850S interne du Dial (compatible MFRC522, I2C 0x28)
+bambu_rc522:
+  i2c_id: internal_i2c
+  address: 0x28
+  update_interval: 500ms
+  filament_type:
+    id: filament_type_sens
+    name: "Type de filament"
+  filament_color:
+    id: filament_color_sens
+    name: "Couleur du filament"
+  filament_color_name:
+    id: filament_color_name_sens
+    name: "Nom couleur"
+  filament_subtype:
+    id: filament_subtype_sens
+    name: "Sous-type filament"
+  tray_info_idx:
+    id: tray_info_idx_sens
+    name: "Code filament"
+  variant_id:
+    id: variant_id_sens
+    name: "Variant ID"
+  card_uid:
+    id: card_uid_sens
+    name: "Card UID"
+  tray_uid:
+    id: tray_uid_sens
+    name: "Tray UID"
+  production_date:
+    id: production_date_sens
+    name: "Date de production"
+  last_scan_date:
+    id: last_scan_date_sens
+    name: "Dernier scan"
+  min_hotend_temp:
+    id: min_hotend_temp_sens
+    name: "Temp min buse"
+  max_hotend_temp:
+    id: max_hotend_temp_sens
+    name: "Temp max buse"
+  bed_temp:
+    id: bed_temp_sens
+    name: "Temp plateau"
+  drying_temp:
+    id: drying_temp_sens
+    name: "Temp séchage"
+  drying_time:
+    id: drying_time_sens
+    name: "Durée séchage"
+  spool_weight:
+    id: spool_weight_sens
+    name: "Poids bobine"
+  filament_diameter:
+    id: filament_diameter_sens
+    name: "Diamètre filament"
+  nozzle_diameter:
+    name: "Diamètre buse"
+  spool_width:
+    name: "Largeur bobine"
+  filament_length:
+    id: filament_length_sens
+    name: "Longueur filament"
+  material_density:
+    id: material_density_sens
+    name: "Densité matériau"
+  reset:
+    name: "Reset filament"

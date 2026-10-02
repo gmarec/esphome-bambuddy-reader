@@ -1,0 +1,220 @@
+## Details : liste defilante a l'encodeur, appui = retour
+lvgl:
+  pages:
+    - id: page_details
+      styles: style_page
+      widgets:
+        # En-tete (tap = retour)
+        - obj:
+            align: TOP_MID
+            y: 0
+            width: 240
+            height: 82
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            scrollbar_mode: "OFF"
+            on_click:
+              then:
+                - lambda: 'id(current_page) = 1;'
+                - lvgl.page.show: page_filament
+            widgets:
+              - obj:
+                  id: detail_circle
+                  align: TOP_MID
+                  y: 18
+                  width: 20
+                  height: 20
+                  radius: 10
+                  bg_color: 0x808080
+                  bg_opa: COVER
+                  border_width: 0
+                  clickable: false
+              - label:
+                  id: lbl_detail_header
+                  align: TOP_MID
+                  y: 42
+                  width: 180
+                  long_mode: DOT
+                  text: "--"
+                  text_color: 0xFFFFFF
+                  text_font: font_small
+                  text_align: CENTER
+              - label:
+                  id: lbl_detail_tray_uid
+                  align: TOP_MID
+                  y: 62
+                  text: "--"
+                  text_color: 0x888888
+                  text_font: font_tiny
+        - obj:
+            align: TOP_MID
+            y: 82
+            width: 170
+            height: 1
+            styles: style_separator
+        # Liste (largeur calee sur la corde du cercle)
+        - obj:
+            id: details_list
+            align: TOP_MID
+            y: 86
+            width: 176
+            height: 112
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            scrollbar_mode: "OFF"
+            layout:
+              type: FLEX
+              flex_flow: COLUMN
+              pad_row: 0
+            widgets:
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Code"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_code
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Type"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_type
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Couleur"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_color
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Hex"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_hex
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Buse"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_hotend
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Plateau"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_bed
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Séchage"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_dry
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Poids"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_weight
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+              - obj:
+                  width: 176
+                  height: 28
+                  styles: style_detail_row
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        text: "Restant"
+                        text_color: 0x666666
+                        text_font: font_small
+                    - label:
+                        id: lbl_detail_remaining
+                        align: RIGHT_MID
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_font: font_small
+        - label:
+            align: BOTTOM_MID
+            y: -12
+            text: "appui : retour"
+            styles: style_hint

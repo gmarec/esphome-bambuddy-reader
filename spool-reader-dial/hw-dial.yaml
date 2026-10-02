@@ -1,0 +1,62 @@
+## Materiel M5Stack Dial (brochage : docs.m5stack.com/en/homeassistant/devices/dial)
+i2c:
+  - id: internal_i2c
+    sda: GPIO11
+    scl: GPIO12
+    frequency: 400kHz
+
+spi:
+  - id: display_spi
+    mosi_pin: GPIO5
+    clk_pin: GPIO6
+
+display:
+  - platform: mipi_spi
+    id: my_display
+    model: GC9A01A
+    spi_id: display_spi
+    cs_pin: GPIO7
+    reset_pin: GPIO8
+    dc_pin: GPIO4
+    invert_colors: true
+    data_rate: 40MHz
+    auto_clear_enabled: false
+    update_interval: never
+
+touchscreen:
+  - platform: ft5x06
+    id: my_touchscreen
+    i2c_id: internal_i2c
+
+output:
+  - platform: ledc
+    pin: GPIO9
+    id: backlight_output
+    frequency: 1000Hz
+  - platform: ledc
+    pin: GPIO3
+    id: buzzer_output
+    frequency: 4000Hz
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: "Luminosité"
+    id: backlight
+    restore_mode: ALWAYS_ON
+    entity_category: config
+
+rtttl:
+  output: buzzer_output
+  id: buzzer
+  gain: 0.6
+
+# Maintien d'alimentation sur batterie (sans effet sur USB)
+switch:
+  - platform: gpio
+    id: power_hold
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+    restore_mode: ALWAYS_ON
+    internal: true
