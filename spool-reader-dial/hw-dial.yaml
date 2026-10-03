@@ -1,10 +1,10 @@
-## Materiel M5Stack Dial (brochage : docs.m5stack.com/en/homeassistant/devices/dial)
+## M5Stack Dial hardware (pinout: docs.m5stack.com/en/homeassistant/devices/dial)
 i2c:
   - id: internal_i2c
     sda: GPIO11
     scl: GPIO12
     frequency: 400kHz
-  # Port Grove A (fil jaune G13 = SDA, fil blanc G15 = SCL) : lecteur PN532 externe
+  # Grove port A (yellow wire G13 = SDA, white wire G15 = SCL): external PN532 reader
   - id: grove_i2c
     sda: GPIO13
     scl: GPIO15
@@ -48,7 +48,7 @@ output:
 light:
   - platform: monochromatic
     output: backlight_output
-    name: "Luminosité"
+    name: "Brightness"
     id: backlight
     restore_mode: ALWAYS_ON
     entity_category: config
@@ -58,7 +58,7 @@ rtttl:
   id: buzzer
   gain: 0.6
 
-# Maintien d'alimentation sur batterie (sans effet sur USB)
+# Power hold on battery (no effect on USB)
 switch:
   - platform: gpio
     id: power_hold

@@ -15,7 +15,7 @@ bambu_rc522:
       - script.execute: show_filament
       # Sync BambuBuddy
       - script.execute: bambuddy_sync
-  # Tag NTAG (non Bambu) : identification par l'UID aupres de BambuBuddy
+  # NTAG tag (non-Bambu): identified by its UID with BambuBuddy
   on_ntag_tag:
     then:
       - rtttl.play: "ok:d=32,o=6,b=200:e,a"
@@ -27,17 +27,17 @@ bambu_rc522:
       - lvgl.page.show: page_idle
       - lvgl.label.update:
           id: error_label
-          text: "Tag non lu"
+          text: "Tag not read"
       - delay: 3s
       - lvgl.label.update:
           id: error_label
           text: ""
 script:
-  # Remplit les pages fiche + details depuis les capteurs filament, puis affiche la fiche.
-  # Partage entre les tags Bambu (capteurs remplis par le lecteur) et NTAG (remplis depuis BambuBuddy).
+  # Fills the filament + details pages from the filament sensors, then shows the filament page.
+  # Shared by Bambu tags (sensors filled by the reader) and NTAG tags (filled from BambuBuddy).
   - id: show_filament
     then:
-      # Reset poids restant + bouton ajout
+      # Reset remaining weight + add button
       - lvgl.label.update:
           id: lbl_remaining
           text: ""
@@ -47,7 +47,7 @@ script:
       - lvgl.widget.update:
           id: btn_add_bambuddy
           hidden: true
-      # Parser la couleur une seule fois
+      # Parse the color once
       - lambda: |-
           auto hex = id(filament_color_sens).state;
           if (hex.length() >= 7) {
@@ -57,11 +57,11 @@ script:
           }
           uint32_t c = id(parsed_color);
           id(color_lum) = (0.299f * ((c >> 16) & 0xFF) + 0.587f * ((c >> 8) & 0xFF) + 0.114f * (c & 0xFF)) / 255.0f;
-      # Couleur bandeau
+      # Banner color
       - lvgl.widget.update:
           id: color_banner
           bg_color: !lambda 'return lv_color_hex(id(parsed_color));'
-      # Cercle assombri
+      # Darkened circle
       - lvgl.widget.update:
           id: color_circle
           bg_color: !lambda |-
@@ -72,7 +72,7 @@ script:
             if (id(color_lum) < 0.35f)
               return lv_color_make(180, 180, 180);
             return lv_color_make(((c >> 16) & 0xFF) / 2, ((c >> 8) & 0xFF) / 2, (c & 0xFF) / 2);
-      # Type espacé + sous-type + contraste auto
+      # Spaced type + subtype + auto contrast
       - lvgl.label.update:
           id: lbl_type_spaced
           text: !lambda |-
@@ -89,16 +89,16 @@ script:
             }
             return spaced.c_str();
           text_color: !lambda 'return lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF);'
-      # Nom couleur + contraste auto
+      # Color name + auto contrast
       - lvgl.label.update:
           id: lbl_color_name
           text: !lambda 'return id(filament_color_name_sens).state.c_str();'
           text_color: !lambda 'return lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF);'
-      # Détails — cercle
+      # Details — circle
       - lvgl.widget.update:
           id: detail_circle
           bg_color: !lambda 'return lv_color_hex(id(parsed_color));'
-      # Détails — header
+      # Details — header
       - lvgl.label.update:
           id: lbl_detail_header
           text: !lambda |-
@@ -106,7 +106,7 @@ script:
             auto s = id(filament_subtype_sens).state;
             if (!s.empty()) t += " · " + s;
             return t.c_str();
-      # Détails — valeurs
+      # Details — values
       - lvgl.label.update:
           id: lbl_detail_type
           text: !lambda 'return id(filament_type_sens).state.c_str();'
@@ -157,6 +157,6 @@ script:
             if (std::isnan(id(drying_temp_sens).state)) return "—";
             snprintf(buf, sizeof(buf), "%.0f°C / %.0f h", id(drying_temp_sens).state, id(drying_time_sens).state);
             return buf;
-      # Afficher page filament
+      # Show filament page
       - lambda: 'id(current_page) = 1;'
       - lvgl.page.show: page_filament

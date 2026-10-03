@@ -1,9 +1,9 @@
 #pragma once
 
-// Lecteur de tags Bambu Lab pour lecteurs MFRC522 / WS1850S en I2C (M5Stack Dial).
-// Driver MFRC522 minimal et autonome (pas de dependance au composant rc522 d'ESPHome,
-// qui ne gere pas l'authentification MIFARE Classic).
-// Decodage et capteurs repris de bambu_nfc (bemble / piitaya).
+// Bambu Lab tag reader for I2C MFRC522 / WS1850S readers (M5Stack Dial) and external PN532 modules.
+// Minimal, self-contained MFRC522 driver (no dependency on ESPHome's rc522 component,
+// which does not handle MIFARE Classic authentication).
+// Decoding and sensors taken from bambu_nfc (bemble / piitaya).
 
 #include "esphome/core/component.h"
 #include "esphome/core/automation.h"
@@ -43,7 +43,7 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   void clear_sensors();
   void set_reader(ReaderType r) { reader_ = r; }
 
-  // Mode diagnostic : mesure de la force du couplage au lieu de lire les tags
+  // Diagnostic mode: measure the coupling strength instead of reading tags
   void set_diag_mode(bool on);
   bool is_diag_mode() const { return diag_mode_; }
   uint8_t get_diag_score() const { return diag_score_; }  // 0..6
@@ -81,7 +81,7 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   enum Status : uint8_t { RC_OK, RC_TIMEOUT, RC_ERROR, RC_COLLISION, RC_CRC, RC_NO_ROOM };
   enum ReadResult : uint8_t { READ_OK, READ_NOT_BAMBU, READ_FAILED };
 
-  // --- Driver MFRC522 bas niveau ---
+  // --- Low-level MFRC522 driver ---
   void write_reg_(uint8_t reg, uint8_t val);
   uint8_t read_reg_(uint8_t reg);
   void set_bits_(uint8_t reg, uint8_t mask) { this->write_reg_(reg, this->read_reg_(reg) | mask); }
@@ -90,7 +90,7 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   Status communicate_(uint8_t cmd, uint8_t wait_irq, const uint8_t *send, uint8_t send_len, uint8_t *back,
                       uint8_t *back_len, uint8_t *valid_bits, uint8_t tx_last_bits, bool check_crc);
 
-  // --- Couche ISO14443A / MIFARE Classic ---
+  // --- ISO14443A / MIFARE Classic layer ---
   bool wakeup_();
   bool select_(std::vector<uint8_t> &uid, uint8_t &sak);
   bool authenticate_(uint8_t block, const uint8_t *key, const std::vector<uint8_t> &uid);
@@ -106,11 +106,11 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   bool pn_detect_(std::vector<uint8_t> &uid, uint8_t &sak);
   bool pn_exchange_(const std::vector<uint8_t> &picc_cmd, std::vector<uint8_t> &out);
 
-  // --- Primitives communes (aiguillees selon le lecteur) ---
+  // --- Shared primitives (dispatched by reader type) ---
   bool detect_(std::vector<uint8_t> &uid, uint8_t &sak);
   bool auth_(uint8_t block, const uint8_t *key, const std::vector<uint8_t> &uid);
-  bool read16_(uint8_t block, std::vector<uint8_t> &out);  // bloc MIFARE ou 4 pages NTAG
-  bool write4_(uint8_t page, const uint8_t *data);         // page NTAG
+  bool read16_(uint8_t block, std::vector<uint8_t> &out);  // MIFARE block or 4 NTAG pages
+  bool write4_(uint8_t page, const uint8_t *data);         // NTAG page
   void end_session_();
   void clear_bambu_sensors_();
   void log_stats_();
@@ -132,7 +132,7 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   ReaderType reader_{READER_WS1850S};
   uint16_t pn_fw_{0};
 
-  // Diagnostic de portee
+  // Range diagnostics
   uint32_t stat_since_{0};
   uint16_t stat_polls_{0}, stat_wupa_ok_{0}, stat_wupa_bad_{0};
   uint16_t stat_anticoll_fail_{0}, stat_select_fail_{0}, stat_select_ok_{0};

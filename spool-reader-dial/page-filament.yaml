@@ -1,4 +1,4 @@
-## Fiche filament : disque plein de la couleur du tag
+## Filament card: full disc in the tag's color
 lvgl:
   pages:
     - id: page_filament
@@ -61,7 +61,7 @@ lvgl:
                   text_color: 0xFFFFFF
                   text_font: font_small
                   text_align: CENTER
-              # Visible si la bobine est inconnue de Bambuddy (tap ou appui long)
+              # Visible if the spool is unknown to BambuBuddy (tap or long press)
               - obj:
                   id: btn_add_bambuddy
                   align: CENTER
@@ -76,6 +76,6 @@ lvgl:
                   widgets:
                     - label:
                         align: CENTER
-                        text: "Ajouter"
+                        text: "Add"
                         text_color: 0x00AE42
                         text_font: font_small

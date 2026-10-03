@@ -90,7 +90,7 @@ schema_dict = {
     cv.Optional(CONF_ON_NTAG_TAG): automation.validate_automation(
         {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(BambuNtagTrigger)}
     ),
-    # ws1850s : lecteur interne du Dial (0x28) ; pn532 : module externe sur le port Grove (0x24)
+    # ws1850s: the Dial's internal reader (0x28); pn532: external module on the Grove port (0x24)
     cv.Optional(CONF_READER, default="ws1850s"): cv.enum(READERS, lower=True),
 }
 

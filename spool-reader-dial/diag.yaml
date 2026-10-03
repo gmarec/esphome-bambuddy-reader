@@ -1,12 +1,12 @@
-## Mode diagnostic RFID : mesure la force du couplage tag <-> antenne
-## Activation : appui court sur le bouton depuis l'accueil, ou interrupteur "Diagnostic RFID" dans HA.
-## Ecran : marge (0-6) + fiabilite. Son : bip d'autant plus aigu que le signal est fort
-## (l'ecran est cache quand le Dial est colle a la bobine).
+## RFID diagnostic mode: measures the tag <-> antenna coupling strength
+## Toggle: short button press on the idle page, or the "RFID diagnostic" switch in HA.
+## Screen: margin (0-6) + reliability. Sound: the stronger the signal, the higher the beep
+## (the screen is hidden when the Dial is pressed against the spool).
 
 switch:
   - platform: template
     id: sw_diag
-    name: "Diagnostic RFID"
+    name: "RFID diagnostic"
     icon: mdi:signal
     entity_category: diagnostic
     optimistic: true
@@ -24,7 +24,7 @@ switch:
           lv_obj_clear_flag(id(lbl_diag_sub), LV_OBJ_FLAG_HIDDEN);
       - rtttl.play: "on:d=16,o=5,b=200:c,g"
     on_turn_off:
-      # Au demarrage, la restauration a OFF declenche aussi on_turn_off : pas de son dans ce cas
+      # At boot, restoring OFF also fires on_turn_off: no sound in that case
       - if:
           condition:
             lambda: 'return id(nfc_reader).is_diag_mode();'
@@ -40,7 +40,7 @@ switch:
 
 sensor:
   - platform: template
-    name: "Signal RFID marge"
+    name: "RFID signal margin"
     icon: mdi:signal
     entity_category: diagnostic
     accuracy_decimals: 0
@@ -49,7 +49,7 @@ sensor:
       if (!id(nfc_reader).is_diag_mode()) return {};
       return id(nfc_reader).get_diag_score();
   - platform: template
-    name: "Signal RFID fiabilité"
+    name: "RFID signal reliability"
     icon: mdi:percent
     unit_of_measurement: "%"
     entity_category: diagnostic
@@ -71,18 +71,18 @@ interval:
                 uint8_t pct = id(nfc_reader).get_diag_pct();
                 char buf[32];
                 if (pct == 0) {
-                  lv_label_set_text(id(lbl_diag), "Aucun tag");
+                  lv_label_set_text(id(lbl_diag), "No tag");
                   lv_label_set_text(id(lbl_diag_sub), "");
                 } else {
-                  snprintf(buf, sizeof(buf), "Signal : %u / 6", score);
+                  snprintf(buf, sizeof(buf), "Signal: %u / 6", score);
                   lv_label_set_text(id(lbl_diag), buf);
-                  snprintf(buf, sizeof(buf), "Fiabilité %u %%", pct);
+                  snprintf(buf, sizeof(buf), "Reliability %u %%", pct);
                   lv_label_set_text(id(lbl_diag_sub), buf);
                 }
                 lv_bar_set_value(id(bar_diag), score, LV_ANIM_OFF);
                 uint32_t col = score >= 4 ? 0x00AE42 : (score >= 2 ? 0xFFA500 : 0xFF4444);
                 lv_obj_set_style_bg_color(id(bar_diag), lv_color_hex(col), LV_PART_INDICATOR);
-            # Bip : silence sans tag, de plus en plus aigu avec la marge
+            # Beep: silent with no tag, higher pitched as the margin grows
             - if:
                 condition:
                   lambda: 'return id(nfc_reader).get_diag_pct() > 0;'

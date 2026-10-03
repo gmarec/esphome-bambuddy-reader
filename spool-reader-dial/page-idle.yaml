@@ -1,4 +1,4 @@
-## Icone de synchro BambuBuddy (deux fleches opposees), recoloree par LVGL
+## BambuBuddy sync icon (two opposite arrows), recolored by LVGL
 image:
   - file: spool-reader-dial/icon-sync.png
     id: icon_sync
@@ -17,13 +17,13 @@ esphome:
                 id: img_sync
                 image_recolor: 0x00AE42
 
-## Ecran d'attente (rond 240x240)
+## Idle screen (round 240x240)
 lvgl:
   pages:
     - id: page_idle
       styles: style_page
       widgets:
-        # Statut Bambuddy (vert = configure) — en haut, centre (les coins sont hors ecran)
+        # BambuBuddy status (green = configured) — top center (the corners are off-screen)
         - image:
             id: img_sync
             src: icon_sync
@@ -31,7 +31,7 @@ lvgl:
             y: 14
             image_recolor: 0x555555
             image_recolor_opa: COVER
-        # Ancienne icone (police MDI), conservee masquee : spool-reader/api-bambuddy.yaml (partage) la met a jour
+        # Former icon (MDI font), kept hidden: spool-reader/api-bambuddy.yaml (shared) still updates it
         - label:
             id: lbl_sync_icon
             hidden: true
@@ -96,22 +96,22 @@ lvgl:
             align: CENTER
             y: 28
             width: 200
-            text: "Scanner un filament"
+            text: "Scan a filament"
             styles: style_text_primary
         - label:
             id: lbl_idle_hint
             align: CENTER
             y: 56
             width: 200
-            text: "Posez la bobine"
+            text: "Place the spool"
             styles: style_text_secondary
-        # Mode diagnostic signal (masque par defaut)
+        # Signal diagnostic mode (hidden by default)
         - label:
             id: lbl_diag
             align: CENTER
             y: 24
             width: 200
-            text: "Signal : --"
+            text: "Signal: --"
             styles: style_text_primary
             hidden: true
         - bar:

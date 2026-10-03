@@ -4,6 +4,11 @@ An ESPHome-based NFC spool reader for Bambu Lab filaments, running on a **Wavesh
 
 > Special thanks to [@piitaya](https://github.com/piitaya) for his foundational work on the NFC tag decoding and spool matching logic that this project builds upon.
 
+> **M5Stack Dial adaptation** — this branch also runs on an [M5Stack Dial](https://docs.m5stack.com/en/core/M5Dial)
+> (round touch screen, rotary encoder, buzzer). The Dial's internal NFC chip was tried first but its range is too short
+> for Bambu tags, so the Dial build uses an external PN532 on its Grove port. It also reads NTAG tags and includes a
+> signal diagnostic. See **[README-dial.md](README-dial.md)**.
+
 ---
 
 ## Features

@@ -1,10 +1,10 @@
-## Details : liste defilante a l'encodeur, appui = retour
+## Details: list scrolled with the encoder, press = back
 lvgl:
   pages:
     - id: page_details
       styles: style_page
       widgets:
-        # En-tete (tap = retour)
+        # Header (tap = back)
         - obj:
             align: TOP_MID
             y: 0
@@ -53,7 +53,7 @@ lvgl:
             width: 170
             height: 1
             styles: style_separator
-        # Liste (largeur calee sur la corde du cercle)
+        # List (width fitted to the circle's chord)
         - obj:
             id: details_list
             align: TOP_MID
@@ -108,7 +108,7 @@ lvgl:
                   widgets:
                     - label:
                         align: LEFT_MID
-                        text: "Couleur"
+                        text: "Color"
                         text_color: 0x666666
                         text_font: font_small
                     - label:
@@ -140,7 +140,7 @@ lvgl:
                   widgets:
                     - label:
                         align: LEFT_MID
-                        text: "Buse"
+                        text: "Nozzle"
                         text_color: 0x666666
                         text_font: font_small
                     - label:
@@ -156,7 +156,7 @@ lvgl:
                   widgets:
                     - label:
                         align: LEFT_MID
-                        text: "Plateau"
+                        text: "Bed"
                         text_color: 0x666666
                         text_font: font_small
                     - label:
@@ -172,7 +172,7 @@ lvgl:
                   widgets:
                     - label:
                         align: LEFT_MID
-                        text: "Séchage"
+                        text: "Drying"
                         text_color: 0x666666
                         text_font: font_small
                     - label:
@@ -188,7 +188,7 @@ lvgl:
                   widgets:
                     - label:
                         align: LEFT_MID
-                        text: "Poids"
+                        text: "Weight"
                         text_color: 0x666666
                         text_font: font_small
                     - label:
@@ -204,7 +204,7 @@ lvgl:
                   widgets:
                     - label:
                         align: LEFT_MID
-                        text: "Restant"
+                        text: "Remaining"
                         text_color: 0x666666
                         text_font: font_small
                     - label:
@@ -216,5 +216,5 @@ lvgl:
         - label:
             align: BOTTOM_MID
             y: -12
-            text: "appui : retour"
+            text: "press: back"
             styles: style_hint

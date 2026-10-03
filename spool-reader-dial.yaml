@@ -1,9 +1,9 @@
-# Bambu spool reader — portage M5Stack Dial (ESP32-S3 + WS1850S + GC9A01A rond)
+# Bambu spool reader — M5Stack Dial port (ESP32-S3 + WS1850S + round GC9A01A)
 substitutions:
   bambuddy_url: !secret bambuddy_url
   bambuddy_api_key: !secret bambuddy_api_key
-  # Lecteur NFC. Interne : ws1850s / internal_i2c / "0x28"
-  #             PN532 sur le port Grove A : pn532 / grove_i2c / "0x24"
+  # NFC reader. Internal: ws1850s / internal_i2c / "0x28"
+  #             PN532 on Grove port A: pn532 / grove_i2c / "0x24"
   nfc_reader: pn532
   nfc_i2c: grove_i2c
   nfc_address: "0x24"
@@ -21,8 +21,8 @@ esp32:
     type: esp-idf
 
 external_components:
-  # Depuis HA : remplacer par
-  #   source: github://<ton-user>/esphome-bambuddy-reader/components@m5dial
+  # From Home Assistant, replace with:
+  #   source: github://gmarec/esphome-bambuddy-reader/components@m5dial
   - source:
       type: local
       path: components

@@ -1,6 +1,6 @@
-## Tags NTAG (non Bambu) : identification par l'UID aupres de BambuBuddy.
-## Le tag ne porte pas (encore) de donnees lues ici : la fiche est remplie depuis la bobine BambuBuddy
-## liee a cet UID. Tag inconnu : l'UID s'affiche pour pouvoir le lier dans BambuBuddy.
+## NTAG tags (non-Bambu): identified by their UID with BambuBuddy.
+## No tag data is read here (yet): the filament card is filled from the BambuBuddy spool
+## linked to this UID. Unknown tag: the UID is shown so it can be linked in BambuBuddy.
 
 script:
   - id: bambuddy_ntag_lookup
@@ -11,9 +11,9 @@ script:
           id(bb_spool_found) = false;
           id(bb_spool_id) = 0;
           id(bb_error) = false;
-          ESP_LOGI("bambuddy", "Recherche tag NTAG: %s", id(card_uid_sens).state.c_str());
+          ESP_LOGI("bambuddy", "Looking up NTAG tag: %s", id(card_uid_sens).state.c_str());
 
-      # 1. Bobine liee a cet UID ?
+      # 1. Is a spool linked to this UID?
       - http_request.post:
           url: "${bambuddy_url}/api/v1/spoolbuddy/nfc/tag-scanned"
           request_headers:
@@ -44,7 +44,7 @@ script:
             then:
               - lambda: 'id(bb_error) = true;'
 
-      # 2. Inconnu ou erreur : message sur l'accueil
+      # 2. Unknown or error: message on the idle page
       - if:
           condition:
             lambda: 'return !id(bb_spool_found);'
@@ -56,9 +56,9 @@ script:
                 text: !lambda |-
                   static std::string s;
                   if (id(bb_error))
-                    s = "BambuBuddy injoignable";
+                    s = "BambuBuddy unreachable";
                   else
-                    s = "Tag inconnu\n" + id(card_uid_sens).state;
+                    s = "Unknown tag\n" + id(card_uid_sens).state;
                   return s.c_str();
             - rtttl.play: "err:d=8,o=4,b=160:c"
             - delay: 6s
@@ -67,7 +67,7 @@ script:
                 text: ""
             - script.stop: bambuddy_ntag_lookup
 
-      # 3. Bobine trouvee : remplir les capteurs filament depuis BambuBuddy
+      # 3. Spool found: fill the filament sensors from BambuBuddy
       - http_request.get:
           url: !lambda |-
             return std::string("${bambuddy_url}/api/v1/inventory/spools/") + std::to_string(id(bb_spool_id));
@@ -83,7 +83,7 @@ script:
                     id(bb_spool_found) = false;
                     return;
                   }
-                  // Champs de premier niveau (ils precedent les listes imbriquees dans la reponse)
+                  // Top-level fields (they come before the nested lists in the response)
                   auto str_field = [&](const char *key) -> std::string {
                     std::string k = std::string("\"") + key + "\":";
                     size_t p = body.find(k);
@@ -123,7 +123,7 @@ script:
                   if (std::isnan(used)) used = 0.0f;
                   id(spool_weight_sens).publish_state(label);
                   id(bb_remaining_weight).publish_state(label - used);
-                  ESP_LOGI("bambuddy", "Bobine NTAG id=%d : %s, restant %.0f g", id(bb_spool_id),
+                  ESP_LOGI("bambuddy", "NTAG spool id=%d: %s, %.0f g remaining", id(bb_spool_id),
                            id(filament_type_sens).state.c_str(), label - used);
 
       - if:
@@ -131,7 +131,7 @@ script:
             lambda: 'return id(bb_spool_found);'
           then:
             - script.execute: show_filament
-            # Poids restant (apres show_filament, qui remet les libelles a zero)
+            # Remaining weight (after show_filament, which resets the labels)
             - lambda: |-
                 char buf[16];
                 snprintf(buf, sizeof(buf), "%.0f g", id(bb_remaining_weight).state);

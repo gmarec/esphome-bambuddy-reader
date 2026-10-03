@@ -1,6 +1,6 @@
-## NFC — lecteur choisi par les substitutions nfc_* de spool-reader-dial.yaml
-##   ws1850s : lecteur interne du Dial (bus internal_i2c, 0x28)
-##   pn532   : module externe sur le port Grove A (bus grove_i2c, 0x24)
+## NFC — reader selected by the nfc_* substitutions in spool-reader-dial.yaml
+##   ws1850s: the Dial's internal reader (internal_i2c bus, 0x28)
+##   pn532  : external module on Grove port A (grove_i2c bus, 0x24)
 bambu_rc522:
   id: nfc_reader
   reader: ${nfc_reader}
@@ -9,19 +9,19 @@ bambu_rc522:
   update_interval: 200ms
   filament_type:
     id: filament_type_sens
-    name: "Type de filament"
+    name: "Filament type"
   filament_color:
     id: filament_color_sens
-    name: "Couleur du filament"
+    name: "Filament color"
   filament_color_name:
     id: filament_color_name_sens
-    name: "Nom couleur"
+    name: "Color name"
   filament_subtype:
     id: filament_subtype_sens
-    name: "Sous-type filament"
+    name: "Filament subtype"
   tray_info_idx:
     id: tray_info_idx_sens
-    name: "Code filament"
+    name: "Filament code"
   variant_id:
     id: variant_id_sens
     name: "Variant ID"
@@ -33,40 +33,40 @@ bambu_rc522:
     name: "Tray UID"
   production_date:
     id: production_date_sens
-    name: "Date de production"
+    name: "Production date"
   last_scan_date:
     id: last_scan_date_sens
-    name: "Dernier scan"
+    name: "Last scan"
   min_hotend_temp:
     id: min_hotend_temp_sens
-    name: "Temp min buse"
+    name: "Nozzle temp min"
   max_hotend_temp:
     id: max_hotend_temp_sens
-    name: "Temp max buse"
+    name: "Nozzle temp max"
   bed_temp:
     id: bed_temp_sens
-    name: "Temp plateau"
+    name: "Bed temp"
   drying_temp:
     id: drying_temp_sens
-    name: "Temp séchage"
+    name: "Drying temp"
   drying_time:
     id: drying_time_sens
-    name: "Durée séchage"
+    name: "Drying time"
   spool_weight:
     id: spool_weight_sens
-    name: "Poids bobine"
+    name: "Spool weight"
   filament_diameter:
     id: filament_diameter_sens
-    name: "Diamètre filament"
+    name: "Filament diameter"
   nozzle_diameter:
-    name: "Diamètre buse"
+    name: "Nozzle diameter"
   spool_width:
-    name: "Largeur bobine"
+    name: "Spool width"
   filament_length:
     id: filament_length_sens
-    name: "Longueur filament"
+    name: "Filament length"
   material_density:
     id: material_density_sens
-    name: "Densité matériau"
+    name: "Material density"
   reset:
     name: "Reset filament"

@@ -1,36 +1,51 @@
-# Contexte projet — portage M5Stack Dial
+# Project context — M5Stack Dial port
 
-Fork de bemble/esphome-bambuddy-reader (ESPHome, lecteur de tags NFC Bambu Lab + synchro BambuBuddy).
-Branche `m5dial` : portage sur M5Stack Dial (ESP32-S3 StampS3, sans PSRAM).
+Fork of bemble/esphome-bambuddy-reader (ESPHome, Bambu Lab NFC tag reader + BambuBuddy sync).
+Branch `m5dial`: port to the M5Stack Dial (ESP32-S3 StampS3, no PSRAM). User docs: `README-dial.md`.
 
-## Etat
-- `components/bambu_rc522/` : composant ESPHome écrit de zéro pour la WS1850S interne (MFRC522, I2C 0x28).
-  Driver MFRC522 minimal (WUPA, anticollision CL1, SELECT, MFAuthent clé A, READ, HLTA).
-  Clés : HKDF-SHA256(UID, salt = clé maître Bambu, info "RFID-A\0"), 16 clés × 6 octets.
-  Décodage/capteurs/triggers repris de `components/bambu_nfc/` (mêmes clés YAML).
-- `spool-reader-dial.yaml` + `spool-reader-dial/` : config Dial (mipi_spi GC9A01A, ft5x06, encodeur 40/41,
-  bouton 42, buzzer 3, rétroéclairage 9, power hold 46), UI LVGL ronde 240×240.
-- Réutilisés tels quels : `spool-reader/api-bambuddy.yaml`, `spool-reader/ui-fonts.yaml`.
-- Option `reader: ws1850s | pn532` (substitutions `nfc_*` de spool-reader-dial.yaml). PN532 : port Grove A
-  (bus `grove_i2c`, G13 SDA / G15 SCL, 0x24), driver I2C maison dans le meme composant.
-- Tags NTAG (UID 7 octets, SAK 0x00) : trigger `on_ntag_tag` -> `spool-reader-dial/api-ntag.yaml`
-  (identification par UID aupres de BambuBuddy, fiche remplie depuis la bobine). Ecriture NTAG : primitive
-  `write4_` prete, pas encore branchee (prochaine etape : appareil SpoolBuddy + ecriture OpenTag3D).
-- Mode diagnostic signal : `spool-reader-dial/diag.yaml` (appui court depuis l'accueil).
+**Language: everything committed to the repo (code, comments, docs, UI strings, log messages, commit messages) is
+in English.**
 
-## Valide sur le materiel (ESPHome 2026.6.5)
-- Compilation, wifi, ecran, tactile (FT3267 a 0x38, IRQ GPIO14), lecture tags Bambu, synchro BambuBuddy.
-- Portee du lecteur interne tres faible (petite antenne) : gain RX 48 dB + puissance TX max appliques,
-  insuffisant en usage -> PN532 externe.
+## Remotes
+- `origin`: upstream bemble/esphome-bambuddy-reader (read only).
+- `fork`: git@github.com:gmarec/esphome-bambuddy-reader.git — push `m5dial` here.
 
-## A valider sur le materiel
-1. Non-regression lecteur interne apres la refonte PN532/NTAG (compile, pas encore flashe).
-2. PN532 : detection, lecture Bambu, NTAG ; niveaux 5 V du module sur le Grove.
-3. Sens du bouton GPIO42, defilement encodeur, buffer LVGL 25 %.
+## Layout
+- `components/bambu_rc522/`: ESPHome component written from scratch, two readers behind common primitives
+  (`detect_`, `auth_`, `read16_`, `write4_`, `end_session_`):
+  - `ws1850s`: the Dial's internal MFRC522-compatible chip (I2C `0x28`): WUPA, anticollision CL1/CL2, SELECT,
+    MFAuthent key A, READ, NTAG WRITE, HLTA. RX gain 48 dB and TX power forced to max.
+  - `pn532`: external module on Grove port A (bus `grove_i2c`, G13 SDA / G15 SCL, `0x24`), in-house I2C driver
+    (InListPassiveTarget, InDataExchange).
+  - Bambu keys: HKDF-SHA256(UID, salt = Bambu master key, info "RFID-A\0"), 16 keys × 6 bytes.
+  - Decoding/sensors/triggers taken from `components/bambu_nfc/` (same YAML keys) + `on_ntag_tag` and `reader`.
+  - Diagnostic mode: `set_diag_mode()`; margin = RX-gain steps still answering, reliability = % of successful probes.
+- `spool-reader-dial.yaml` + `spool-reader-dial/`: Dial config (mipi_spi GC9A01A, ft5x06 touch at `0x38` with IRQ
+  GPIO14, encoder 40/41, button 42, buzzer 3, backlight 9, power hold 46), round LVGL UI 240×240.
+  Reader chosen by the `nfc_*` substitutions (PN532 by default).
+  - `api-ntag.yaml`: NTAG lookup by UID in BambuBuddy, filament card filled from the spool.
+  - `diag.yaml`: signal diagnostic (beep pitch + screen + HA sensors), short press on the idle screen.
+  - `pages-triggers.yaml`: `show_filament` script shared by Bambu and NTAG scans.
+- Reused unchanged from upstream: `spool-reader/api-bambuddy.yaml`, `spool-reader/ui-fonts.yaml` (still French;
+  upstream files, left as-is to ease merges).
+- `hardware/handle/`: 3D-printed handle (Dial + PN532), not designed yet.
 
-## Commandes
+## Validated on hardware (ESPHome 2026.6.5)
+- Build, Wi-Fi, display, touch, Bambu tag reading and BambuBuddy sync with the internal reader.
+- Internal reader range is millimetres (tiny antenna) even at max gain/power → switched to an external PN532.
+
+## To validate on hardware
+1. PN532: detection, Bambu reading, NTAG; module I2C pull-ups vs the Grove 5 V supply.
+2. NTAG lookup flow end to end.
+3. Button GPIO42 polarity, encoder scrolling, LVGL buffer 25 % (drop to 12 % if it reboots).
+
+## Next steps
+- Make the Dial a SpoolBuddy-compatible device (`/devices/register`, `/devices/{id}/heartbeat`,
+  `/nfc/write-tag` → write OpenTag3D bytes with `write4_`, `/nfc/write-result`).
+
+## Commands
 - `esphome config spool-reader-dial.yaml`
-- `esphome run spool-reader-dial.yaml --device /dev/cu.usbmodem*`
+- `esphome run spool-reader-dial.yaml --device /dev/cu.usbmodem*` (first flash) or `--device 192.168.78.8`
 - `esphome logs spool-reader-dial.yaml`
 
-Secrets : `secrets.yaml` (wifi, api key, ota, bambuddy_url, bambuddy_api_key) — ne pas committer.
+Secrets: `secrets.yaml` (wifi, api key, ota, bambuddy_url, bambuddy_api_key) — never commit.

@@ -3,7 +3,7 @@ lvgl:
     - my_display
   touchscreens:
     - my_touchscreen
-  # Pas de PSRAM sur le StampS3 : buffer partiel
+  # No PSRAM on the StampS3: partial buffer
   buffer_size: 25%
   disp_bg_color: 0x111111
   disp_bg_opa: COVER
