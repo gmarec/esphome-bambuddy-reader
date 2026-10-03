@@ -4,30 +4,31 @@ Branch `m5dial`: the same features as the Waveshare build (Bambu Lab tag reading
 BambuBuddy sync) on an **M5Stack Dial** (ESP32-S3, round 240×240 touch screen, rotary encoder, button, buzzer),
 with an external **PN532** NFC reader plugged into the Dial's Grove port.
 
-## What changes compared to the Waveshare build
+## Hardware
 
-| | Waveshare (upstream) | M5Stack Dial |
+| Part | Details |
+|---|---|
+| [M5Stack Dial](https://docs.m5stack.com/en/core/M5Dial) | ESP32-S3FN8, 8 MB flash, no PSRAM; 1.28" round 240×240 GC9A01 display, FT3267 touch, rotary encoder, built-in button, buzzer, BM8563 RTC |
+| NFC reader | PN532 module ("NFC V3", red), DIP switches set to **I2C**, address `0x24` |
+| Cable | Grove (HY2.0-4P) to female Dupont, Dial port A → PN532 |
+| Battery | 3.7 V LiPo **200 mAh** on the Dial's battery connector (MX1.25-2P) |
+| External button | push button — wiring and function to be defined |
+| Handle | 3D-printed, holds the Dial and the PN532 ([`hardware/handle/`](hardware/handle/)) |
+
+### Pins used
+
+| Function | GPIO | Notes |
 |---|---|---|
-| NFC reader | PN532, SPI | PN532 on Grove port A, I2C `0x24` (internal WS1850S still supported) |
-| Component | `bambu_nfc` | `bambu_rc522` (standalone driver for both readers + MIFARE Classic auth) |
-| Tags | Bambu Lab | Bambu Lab + NTAG 213/215/216 (identified by UID through BambuBuddy) |
-| Display | ST7789V 240×320 touch | GC9A01A round 240×240 touch |
-| Navigation | touch buttons | rotary encoder + button + touch |
+| Display SPI | CLK 6, MOSI 5, CS 7, DC 4, RST 8 | GC9A01 |
+| Backlight | 9 | LEDC PWM, "Brightness" light in Home Assistant |
+| Internal I2C | SDA 11, SCL 12 | touch `0x38` (IRQ 14), RTC `0x51` |
+| Grove port A I2C | SDA 13 (yellow), SCL 15 (white) | PN532 `0x24`, 100 kHz |
+| Encoder | A 40, B 41 | swap them if scrolling goes the wrong way |
+| Button | 42 | built-in button |
+| Buzzer | 3 | LEDC PWM, RTTTL sounds |
+| Power hold | 46 | kept high so the Dial stays on when running from the battery |
 
-`spool-reader/api-bambuddy.yaml` and `spool-reader/ui-fonts.yaml` are reused as-is.
-
-## Why an external PN532
-
-The port was first built around the Dial's **internal NFC chip** (WS1850S, MFRC522-compatible, I2C `0x28`), so the
-device would need no wiring at all. It works — Bambu tags are read and synced — but its antenna is a small ring around
-the screen, and the small tags inside Bambu spools only couple when placed within a few millimetres of the right spot,
-even with the receiver gain and transmitter power at their maximum. M5Stack's documentation also recommends
-card-sized tags for this reader. That is not usable day to day, so the build now uses an external PN532, whose larger
-antenna reads Bambu tags at a comfortable distance and is forgiving about placement.
-
-The internal reader is still supported (see [Reader selection](#reader-selection)), e.g. for card-sized NTAG stickers.
-
-## PN532 wiring
+### PN532 wiring
 
 1. Set the PN532 DIP switches to **I2C** (see the module's silkscreen).
 2. With the Dial **powered off**, wire Grove port A to the PN532:
@@ -44,21 +45,21 @@ The internal reader is still supported (see [Reader selection](#reader-selection
 > ⚠️ The Grove port supplies **5 V**, while ESP32 pins only accept 3.3 V. Before wiring, check that the module's I2C
 > pull-up resistors are not tied to 5 V.
 
-## Reader selection
+### Power
 
-Three substitutions at the top of `spool-reader-dial.yaml`:
+- USB-C (5 V) for flashing and when docked; the 200 mAh LiPo charges from it.
+- On battery, the Dial powers on with its **WAKE** button and stays on because the firmware holds GPIO46 high.
+  There is no sleep / power-off logic in the firmware yet, so the battery runs down while the screen and the reader
+  are on.
 
-```yaml
-# External PN532 on Grove port A (default)
-nfc_reader: pn532
-nfc_i2c: grove_i2c
-nfc_address: "0x24"
+## Why an external PN532
 
-# Internal WS1850S
-nfc_reader: ws1850s
-nfc_i2c: internal_i2c
-nfc_address: "0x28"
-```
+The port was first built around the Dial's **internal NFC chip** (WS1850S, I2C `0x28`) so that no wiring would be
+needed. It reads Bambu tags, but its antenna is a small ring around the screen: the small tags inside Bambu spools
+only couple within a few millimetres of the right spot, even with the receiver gain and transmitter power at their
+maximum (M5Stack also recommends card-sized tags for it). The PN532's larger antenna reads them at a comfortable
+distance. The internal reader is still selectable with the `nfc_*` substitutions in `spool-reader-dial.yaml`
+(`ws1850s` / `internal_i2c` / `"0x28"`), but it is not the supported setup.
 
 ## Usage
 

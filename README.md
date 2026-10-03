@@ -20,11 +20,18 @@ An ESPHome-based NFC spool reader for Bambu Lab filaments, running on a **Wavesh
 - Can add unknown spools to BambuBuddy directly from the device
 - Exposes all filament sensors to Home Assistant via the ESPHome API
 - Backlight control via Home Assistant
-- All the screens are in French, sorry
+- All the screens are in French, sorry (the M5Stack Dial build is in English)
 
 ---
 
 ## Hardware
+
+Two builds share the same NFC decoding and BambuBuddy integration:
+
+- **Waveshare build** (upstream): below.
+- **M5Stack Dial build**: see [M5Stack Dial build](#m5stack-dial-build) and [README-dial.md](README-dial.md).
+
+### Waveshare build
 
 | Component | Details |
 |-----------|---------|
@@ -71,6 +78,23 @@ The PN532 module must be set to **SPI mode** using its two DIP switches:
 | 2 | **KE** (OFF) |
 
 This selects the SPI interface on the PN532 module. Make sure to set these before powering the board.
+
+### M5Stack Dial build
+
+| Component | Details |
+|-----------|---------|
+| Microcontroller | [M5Stack Dial](https://docs.m5stack.com/en/core/M5Dial) — ESP32-S3FN8, 8 MB flash, no PSRAM |
+| Display | 1.28" round 240×240 GC9A01 via SPI |
+| Touch | FT3267 via I2C (`0x38`) |
+| Controls | rotary encoder, built-in button, buzzer |
+| NFC Reader | PN532 module ("NFC V3", red), **I2C** on Grove port A (`0x24`) |
+| Cable | Grove (HY2.0-4P) to female Dupont |
+| Battery | 3.7 V LiPo 200 mAh on the Dial's battery connector (MX1.25-2P) |
+| External button | push button (wiring and function to be defined) |
+| Enclosure | 3D-printed handle holding the Dial and the PN532 ([`hardware/handle/`](hardware/handle/)) |
+
+The PN532 DIP switches must be set to **I2C** for this build (not SPI). Pin mapping, wiring and power notes are in
+[README-dial.md](README-dial.md#hardware).
 
 ---
 
@@ -207,6 +231,14 @@ spool-reader/
   pages-triggers.yaml      # Page navigation triggers
 components/
   bambu_nfc/               # Custom ESPHome NFC component
+
+# M5Stack Dial build
+spool-reader-dial.yaml     # Main ESPHome config for the Dial
+spool-reader-dial/         # Dial hardware, NFC, UI pages, NTAG lookup, signal diagnostic
+components/
+  bambu_rc522/             # NFC component for the Dial (PN532 I2C or internal WS1850S)
+hardware/
+  handle/                  # 3D-printed handle (Dial + PN532)
 ```
 
 ---
