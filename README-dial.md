@@ -21,7 +21,7 @@ Branche `m5dial` : même fonctionnement que la version Waveshare (lecture des ta
 
 ## Commandes
 
-- **Poser la flasque** contre la face avant (côté écran), près du moyeu.
+- **Poser le côté de la bobine** contre la face avant (côté écran), près du trou central.
 - **Appui court** : fiche filament ⇄ détails.
 - **Encodeur** : sur la fiche, ouvre les détails ; sur les détails, fait défiler la liste.
 - **Appui long** : ajoute la bobine dans BambuBuddy si elle est inconnue, sinon retour à l'accueil.
@@ -30,3 +30,29 @@ Branche `m5dial` : même fonctionnement que la version Waveshare (lecture des ta
 ## Tables couleurs / densités
 
 `components/bambu_rc522/sync_tables.sh` régénère les tables depuis SpoolmanDB (via le script de `bambu_nfc`) et les recopie avec le bon namespace.
+
+## Lecteur PN532 externe (option)
+
+Le lecteur interne du Dial a une petite antenne : les tags Bambu se lisent à quelques millimètres près.
+Un module PN532 (« NFC V3 », rouge) sur le port Grove A lit plus loin et pardonne le placement.
+
+1. Interrupteurs du PN532 en mode **I2C** (voir la sérigraphie du module).
+2. Câblage port Grove A → PN532 : rouge → VCC, noir → GND, jaune (G13) → SDA, blanc (G15) → SCL.
+   ⚠️ Le Grove fournit du **5 V** : vérifier que les résistances de tirage I2C du module ne remontent pas SDA/SCL à 5 V
+   (l'ESP32 n'accepte que 3,3 V).
+3. Dans `spool-reader-dial.yaml` :
+   ```yaml
+   nfc_reader: pn532
+   nfc_i2c: grove_i2c
+   nfc_address: "0x24"
+   ```
+
+Les deux lecteurs lisent les tags Bambu (MIFARE Classic) et les tags **NTAG** (213/215/216).
+Un NTAG est identifié par son UID auprès de BambuBuddy : s'il est lié à une bobine, la fiche s'affiche avec les
+infos de BambuBuddy ; sinon l'UID s'affiche (« Tag inconnu ») pour pouvoir le lier.
+
+## Diagnostic du signal
+
+Appui court sur le bouton depuis l'accueil (ou interrupteur « Diagnostic RFID » dans HA) : le Dial bipe d'autant
+plus aigu que le couplage avec le tag est fort, et affiche une marge (0-6) et une fiabilité (%).
+Aucune bobine n'est lue ni synchronisée pendant le diagnostic.

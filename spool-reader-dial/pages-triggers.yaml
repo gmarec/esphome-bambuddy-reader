@@ -12,6 +12,31 @@ bambu_rc522:
   on_bambu_success:
     then:
       - rtttl.play: "ok:d=32,o=6,b=200:e,a"
+      - script.execute: show_filament
+      # Sync BambuBuddy
+      - script.execute: bambuddy_sync
+  # Tag NTAG (non Bambu) : identification par l'UID aupres de BambuBuddy
+  on_ntag_tag:
+    then:
+      - rtttl.play: "ok:d=32,o=6,b=200:e,a"
+      - script.execute: bambuddy_ntag_lookup
+  on_bambu_error:
+    then:
+      - rtttl.play: "err:d=8,o=4,b=160:c"
+      - lambda: 'id(current_page) = 0;'
+      - lvgl.page.show: page_idle
+      - lvgl.label.update:
+          id: error_label
+          text: "Tag non lu"
+      - delay: 3s
+      - lvgl.label.update:
+          id: error_label
+          text: ""
+script:
+  # Remplit les pages fiche + details depuis les capteurs filament, puis affiche la fiche.
+  # Partage entre les tags Bambu (capteurs remplis par le lecteur) et NTAG (remplis depuis BambuBuddy).
+  - id: show_filament
+    then:
       # Reset poids restant + bouton ajout
       - lvgl.label.update:
           id: lbl_remaining
@@ -94,16 +119,18 @@ bambu_rc522:
       - lvgl.label.update:
           id: lbl_detail_hotend
           text: !lambda |-
-            char buf[32];
+            static char buf[32];
+            if (std::isnan(id(min_hotend_temp_sens).state)) return "—";
             snprintf(buf, sizeof(buf), "%.0f - %.0f°C",
               id(min_hotend_temp_sens).state, id(max_hotend_temp_sens).state);
-            return std::string(buf).c_str();
+            return buf;
       - lvgl.label.update:
           id: lbl_detail_weight
           text: !lambda |-
-            char buf[16];
+            static char buf[16];
+            if (std::isnan(id(spool_weight_sens).state)) return "—";
             snprintf(buf, sizeof(buf), "%.0f g", id(spool_weight_sens).state);
-            return std::string(buf).c_str();
+            return buf;
       - lvgl.label.update:
           id: lbl_detail_tray_uid
           text: !lambda |-
@@ -120,28 +147,16 @@ bambu_rc522:
           id: lbl_detail_bed
           text: !lambda |-
             static char buf[16];
+            if (std::isnan(id(bed_temp_sens).state)) return "—";
             snprintf(buf, sizeof(buf), "%.0f°C", id(bed_temp_sens).state);
             return buf;
       - lvgl.label.update:
           id: lbl_detail_dry
           text: !lambda |-
             static char buf[24];
+            if (std::isnan(id(drying_temp_sens).state)) return "—";
             snprintf(buf, sizeof(buf), "%.0f°C / %.0f h", id(drying_temp_sens).state, id(drying_time_sens).state);
             return buf;
       # Afficher page filament
       - lambda: 'id(current_page) = 1;'
       - lvgl.page.show: page_filament
-      # Sync BambuBuddy
-      - script.execute: bambuddy_sync
-  on_bambu_error:
-    then:
-      - rtttl.play: "err:d=8,o=4,b=160:c"
-      - lambda: 'id(current_page) = 0;'
-      - lvgl.page.show: page_idle
-      - lvgl.label.update:
-          id: error_label
-          text: "Tag non lu"
-      - delay: 3s
-      - lvgl.label.update:
-          id: error_label
-          text: ""

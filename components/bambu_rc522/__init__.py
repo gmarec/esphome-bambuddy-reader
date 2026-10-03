@@ -33,6 +33,8 @@ CONF_RESET = "reset"
 CONF_ON_BAMBU_SUCCESS = "on_bambu_success"
 CONF_ON_BAMBU_ERROR = "on_bambu_error"
 CONF_ON_TAG_REMOVED = "on_tag_removed"
+CONF_ON_NTAG_TAG = "on_ntag_tag"
+CONF_READER = "reader"
 
 bambu_nfc_ns = cg.esphome_ns.namespace("bambu_rc522")
 BambuNfc = bambu_nfc_ns.class_("BambuRc522", cg.PollingComponent, i2c.I2CDevice)
@@ -42,6 +44,9 @@ BambuNfcResetButton = bambu_nfc_ns.class_(
 BambuSuccessTrigger = bambu_nfc_ns.class_("BambuSuccessTrigger", automation.Trigger.template())
 BambuErrorTrigger = bambu_nfc_ns.class_("BambuErrorTrigger", automation.Trigger.template())
 BambuTagRemovedTrigger = bambu_nfc_ns.class_("BambuTagRemovedTrigger", automation.Trigger.template())
+BambuNtagTrigger = bambu_nfc_ns.class_("BambuNtagTrigger", automation.Trigger.template())
+ReaderType = bambu_nfc_ns.enum("ReaderType")
+READERS = {"ws1850s": ReaderType.READER_WS1850S, "pn532": ReaderType.READER_PN532}
 
 TEXT_SENSORS = [
     (CONF_FILAMENT_TYPE, "set_filament_type_sensor", {"icon": "mdi:tag-text"}),
@@ -82,6 +87,11 @@ schema_dict = {
     cv.Optional(CONF_ON_TAG_REMOVED): automation.validate_automation(
         {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(BambuTagRemovedTrigger)}
     ),
+    cv.Optional(CONF_ON_NTAG_TAG): automation.validate_automation(
+        {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(BambuNtagTrigger)}
+    ),
+    # ws1850s : lecteur interne du Dial (0x28) ; pn532 : module externe sur le port Grove (0x24)
+    cv.Optional(CONF_READER, default="ws1850s"): cv.enum(READERS, lower=True),
 }
 
 for key, _, kwargs in TEXT_SENSORS:
@@ -101,6 +111,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await i2c.register_i2c_device(var, config)
+    cg.add(var.set_reader(config[CONF_READER]))
 
     for key, setter, _ in TEXT_SENSORS:
         if key in config:
@@ -129,4 +140,9 @@ async def to_code(config):
     for conf in config.get(CONF_ON_TAG_REMOVED, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID])
         cg.add(var.register_tag_removed_trigger(trigger))
+        await automation.build_automation(trigger, [], conf)
+
+    for conf in config.get(CONF_ON_NTAG_TAG, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID])
+        cg.add(var.register_ntag_trigger(trigger))
         await automation.build_automation(trigger, [], conf)

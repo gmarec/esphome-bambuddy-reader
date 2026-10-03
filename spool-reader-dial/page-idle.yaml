@@ -1,3 +1,22 @@
+## Icone de synchro BambuBuddy (deux fleches opposees), recoloree par LVGL
+image:
+  - file: spool-reader-dial/icon-sync.png
+    id: icon_sync
+    type: RGB565
+    transparency: alpha_channel
+
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - if:
+          condition:
+            lambda: 'return std::string("${bambuddy_url}").find("http") == 0;'
+          then:
+            - lvgl.image.update:
+                id: img_sync
+                image_recolor: 0x00AE42
+
 ## Ecran d'attente (rond 240x240)
 lvgl:
   pages:
@@ -5,16 +24,22 @@ lvgl:
       styles: style_page
       widgets:
         # Statut Bambuddy (vert = configure) — en haut, centre (les coins sont hors ecran)
-        - label:
-            id: lbl_sync_icon
+        - image:
+            id: img_sync
+            src: icon_sync
             align: TOP_MID
             y: 14
+            image_recolor: 0x555555
+            image_recolor_opa: COVER
+        # Ancienne icone (police MDI), conservee masquee : spool-reader/api-bambuddy.yaml (partage) la met a jour
+        - label:
+            id: lbl_sync_icon
+            hidden: true
             text: "\U000F04E8"
-            text_color: 0x555555
             text_font: font_large
         - arc:
             align: CENTER
-            y: -35
+            y: -20
             width: 100
             height: 100
             start_angle: 210
@@ -22,14 +47,14 @@ lvgl:
             arc_width: 3
             arc_opa: TRANSP
             indicator:
-              arc_color: 0x3D6B3D
+              arc_color: 0x1E6E78
               arc_width: 3
             value: 100
             adjustable: false
             clickable: false
         - arc:
             align: CENTER
-            y: -35
+            y: -20
             width: 72
             height: 72
             start_angle: 210
@@ -37,14 +62,14 @@ lvgl:
             arc_width: 3
             arc_opa: TRANSP
             indicator:
-              arc_color: 0x4A8A4A
+              arc_color: 0x2A9BA8
               arc_width: 3
             value: 100
             adjustable: false
             clickable: false
         - arc:
             align: CENTER
-            y: -35
+            y: -20
             width: 48
             height: 48
             start_angle: 210
@@ -52,32 +77,61 @@ lvgl:
             arc_width: 3
             arc_opa: TRANSP
             indicator:
-              arc_color: 0x5AAA5A
+              arc_color: 0x3CC8D8
               arc_width: 3
             value: 100
             adjustable: false
             clickable: false
         - obj:
             align: CENTER
-            y: -35
+            y: -20
             width: 20
             height: 20
             radius: 10
-            bg_color: 0x00AE42
+            bg_color: 0x00E5FF
             bg_opa: COVER
             border_width: 0
         - label:
+            id: lbl_idle_title
             align: CENTER
             y: 28
             width: 200
             text: "Scanner un filament"
             styles: style_text_primary
         - label:
+            id: lbl_idle_hint
             align: CENTER
             y: 56
             width: 200
-            text: "Posez la flasque"
+            text: "Posez la bobine"
             styles: style_text_secondary
+        # Mode diagnostic signal (masque par defaut)
+        - label:
+            id: lbl_diag
+            align: CENTER
+            y: 24
+            width: 200
+            text: "Signal : --"
+            styles: style_text_primary
+            hidden: true
+        - bar:
+            id: bar_diag
+            align: CENTER
+            y: 54
+            width: 150
+            height: 12
+            min_value: 0
+            max_value: 6
+            value: 0
+            hidden: true
+        - label:
+            id: lbl_diag_sub
+            align: CENTER
+            y: 78
+            width: 200
+            text: ""
+            styles: style_text_secondary
+            hidden: true
         - label:
             id: error_label
             align: BOTTOM_MID

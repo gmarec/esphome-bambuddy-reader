@@ -69,6 +69,9 @@ binary_sensor:
                     then:
                       - lambda: 'id(current_page) = 1;'
                       - lvgl.page.show: page_filament
+                    else:
+                      # Accueil : bascule le mode diagnostic signal
+                      - switch.toggle: sw_diag
       # Appui long : ajout Bambuddy si bobine inconnue, sinon retour a l'accueil
       - min_length: 900ms
         max_length: 5s

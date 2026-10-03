@@ -30,6 +30,9 @@ class BambuRc522ResetButton : public button::Button, public Parented<BambuRc522>
 class BambuSuccessTrigger : public Trigger<> {};
 class BambuErrorTrigger : public Trigger<> {};
 class BambuTagRemovedTrigger : public Trigger<> {};
+class BambuNtagTrigger : public Trigger<> {};
+
+enum ReaderType : uint8_t { READER_WS1850S, READER_PN532 };
 
 class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
  public:
@@ -38,6 +41,13 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::DATA; }
   void clear_sensors();
+  void set_reader(ReaderType r) { reader_ = r; }
+
+  // Mode diagnostic : mesure de la force du couplage au lieu de lire les tags
+  void set_diag_mode(bool on);
+  bool is_diag_mode() const { return diag_mode_; }
+  uint8_t get_diag_score() const { return diag_score_; }  // 0..6
+  uint8_t get_diag_pct() const { return diag_pct_; }      // 0..100
 
   void set_filament_type_sensor(text_sensor::TextSensor *s) { filament_type_sensor_ = s; }
   void set_filament_color_sensor(text_sensor::TextSensor *s) { filament_color_sensor_ = s; }
@@ -65,6 +75,7 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   void register_bambu_success_trigger(BambuSuccessTrigger *t) { success_triggers_.push_back(t); }
   void register_bambu_error_trigger(BambuErrorTrigger *t) { error_triggers_.push_back(t); }
   void register_tag_removed_trigger(BambuTagRemovedTrigger *t) { removed_triggers_.push_back(t); }
+  void register_ntag_trigger(BambuNtagTrigger *t) { ntag_triggers_.push_back(t); }
 
  protected:
   enum Status : uint8_t { RC_OK, RC_TIMEOUT, RC_ERROR, RC_COLLISION, RC_CRC, RC_NO_ROOM };
@@ -81,14 +92,33 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
 
   // --- Couche ISO14443A / MIFARE Classic ---
   bool wakeup_();
-  bool select_(std::vector<uint8_t> &uid);
+  bool select_(std::vector<uint8_t> &uid, uint8_t &sak);
   bool authenticate_(uint8_t block, const uint8_t *key, const std::vector<uint8_t> &uid);
   bool read_block_(uint8_t block, std::vector<uint8_t> &out);
+  bool write_page_(uint8_t page, const uint8_t *data);
   void halt_();
   void stop_crypto_();
 
+  // --- Driver PN532 (I2C) ---
+  bool pn_wait_ready_(uint32_t timeout_ms);
+  bool pn_command_(const std::vector<uint8_t> &cmd, std::vector<uint8_t> &resp, uint32_t timeout_ms);
+  bool pn_setup_();
+  bool pn_detect_(std::vector<uint8_t> &uid, uint8_t &sak);
+  bool pn_exchange_(const std::vector<uint8_t> &picc_cmd, std::vector<uint8_t> &out);
+
+  // --- Primitives communes (aiguillees selon le lecteur) ---
+  bool detect_(std::vector<uint8_t> &uid, uint8_t &sak);
+  bool auth_(uint8_t block, const uint8_t *key, const std::vector<uint8_t> &uid);
+  bool read16_(uint8_t block, std::vector<uint8_t> &out);  // bloc MIFARE ou 4 pages NTAG
+  bool write4_(uint8_t page, const uint8_t *data);         // page NTAG
+  void end_session_();
+  void clear_bambu_sensors_();
+  void log_stats_();
+  bool probe_();
+  void measure_signal_();
+
   // --- Bambu ---
-  ReadResult read_bambu_data_(const std::vector<uint8_t> &uid);
+  ReadResult read_bambu_data_(const std::vector<uint8_t> &uid, uint8_t sak);
   void publish_bambu_data_(const std::vector<uint8_t> &uid, const std::vector<uint8_t> &b1,
                            const std::vector<uint8_t> &b2, const std::vector<uint8_t> &b4,
                            const std::vector<uint8_t> &b5, const std::vector<uint8_t> &b6,
@@ -99,6 +129,18 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   std::vector<uint8_t> current_uid_;
   uint8_t miss_count_{0};
   uint8_t version_{0};
+  ReaderType reader_{READER_WS1850S};
+  uint16_t pn_fw_{0};
+
+  // Diagnostic de portee
+  uint32_t stat_since_{0};
+  uint16_t stat_polls_{0}, stat_wupa_ok_{0}, stat_wupa_bad_{0};
+  uint16_t stat_anticoll_fail_{0}, stat_select_fail_{0}, stat_select_ok_{0};
+  uint8_t last_err_{0};
+
+  bool diag_mode_{false};
+  uint8_t diag_score_{0};
+  uint8_t diag_pct_{0};
 
   text_sensor::TextSensor *filament_type_sensor_{nullptr};
   text_sensor::TextSensor *filament_color_sensor_{nullptr};
@@ -126,6 +168,7 @@ class BambuRc522 : public PollingComponent, public i2c::I2CDevice {
   std::vector<BambuSuccessTrigger *> success_triggers_;
   std::vector<BambuErrorTrigger *> error_triggers_;
   std::vector<BambuTagRemovedTrigger *> removed_triggers_;
+  std::vector<BambuNtagTrigger *> ntag_triggers_;
 };
 
 }  // namespace bambu_rc522

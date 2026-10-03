@@ -1,0 +1,93 @@
+## Mode diagnostic RFID : mesure la force du couplage tag <-> antenne
+## Activation : appui court sur le bouton depuis l'accueil, ou interrupteur "Diagnostic RFID" dans HA.
+## Ecran : marge (0-6) + fiabilite. Son : bip d'autant plus aigu que le signal est fort
+## (l'ecran est cache quand le Dial est colle a la bobine).
+
+switch:
+  - platform: template
+    id: sw_diag
+    name: "Diagnostic RFID"
+    icon: mdi:signal
+    entity_category: diagnostic
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - lambda: |-
+          id(nfc_reader).set_diag_mode(true);
+          id(current_page) = 0;
+      - lvgl.page.show: page_idle
+      - lambda: |-
+          lv_obj_add_flag(id(lbl_idle_title), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(lbl_idle_hint), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(lbl_diag), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(bar_diag), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(lbl_diag_sub), LV_OBJ_FLAG_HIDDEN);
+      - rtttl.play: "on:d=16,o=5,b=200:c,g"
+    on_turn_off:
+      # Au demarrage, la restauration a OFF declenche aussi on_turn_off : pas de son dans ce cas
+      - if:
+          condition:
+            lambda: 'return id(nfc_reader).is_diag_mode();'
+          then:
+            - rtttl.play: "off:d=16,o=5,b=200:g,c"
+      - lambda: |-
+          id(nfc_reader).set_diag_mode(false);
+          lv_obj_clear_flag(id(lbl_idle_title), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(lbl_idle_hint), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(lbl_diag), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(bar_diag), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(lbl_diag_sub), LV_OBJ_FLAG_HIDDEN);
+
+sensor:
+  - platform: template
+    name: "Signal RFID marge"
+    icon: mdi:signal
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      if (!id(nfc_reader).is_diag_mode()) return {};
+      return id(nfc_reader).get_diag_score();
+  - platform: template
+    name: "Signal RFID fiabilité"
+    icon: mdi:percent
+    unit_of_measurement: "%"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      if (!id(nfc_reader).is_diag_mode()) return {};
+      return id(nfc_reader).get_diag_pct();
+
+interval:
+  - interval: 400ms
+    then:
+      - if:
+          condition:
+            switch.is_on: sw_diag
+          then:
+            - lambda: |-
+                uint8_t score = id(nfc_reader).get_diag_score();
+                uint8_t pct = id(nfc_reader).get_diag_pct();
+                char buf[32];
+                if (pct == 0) {
+                  lv_label_set_text(id(lbl_diag), "Aucun tag");
+                  lv_label_set_text(id(lbl_diag_sub), "");
+                } else {
+                  snprintf(buf, sizeof(buf), "Signal : %u / 6", score);
+                  lv_label_set_text(id(lbl_diag), buf);
+                  snprintf(buf, sizeof(buf), "Fiabilité %u %%", pct);
+                  lv_label_set_text(id(lbl_diag_sub), buf);
+                }
+                lv_bar_set_value(id(bar_diag), score, LV_ANIM_OFF);
+                uint32_t col = score >= 4 ? 0x00AE42 : (score >= 2 ? 0xFFA500 : 0xFF4444);
+                lv_obj_set_style_bg_color(id(bar_diag), lv_color_hex(col), LV_PART_INDICATOR);
+            # Bip : silence sans tag, de plus en plus aigu avec la marge
+            - if:
+                condition:
+                  lambda: 'return id(nfc_reader).get_diag_pct() > 0;'
+                then:
+                  - rtttl.play:
+                      rtttl: !lambda |-
+                        static const char *const NOTES[] = {"c5", "e5", "g5", "c6", "e6", "g6", "c7"};
+                        return std::string("s:d=32,o=5,b=240:") + NOTES[id(nfc_reader).get_diag_score()];

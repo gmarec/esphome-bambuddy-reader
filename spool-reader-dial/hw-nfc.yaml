@@ -1,8 +1,12 @@
-## NFC — WS1850S interne du Dial (compatible MFRC522, I2C 0x28)
+## NFC — lecteur choisi par les substitutions nfc_* de spool-reader-dial.yaml
+##   ws1850s : lecteur interne du Dial (bus internal_i2c, 0x28)
+##   pn532   : module externe sur le port Grove A (bus grove_i2c, 0x24)
 bambu_rc522:
-  i2c_id: internal_i2c
-  address: 0x28
-  update_interval: 500ms
+  id: nfc_reader
+  reader: ${nfc_reader}
+  i2c_id: ${nfc_i2c}
+  address: ${nfc_address}
+  update_interval: 200ms
   filament_type:
     id: filament_type_sens
     name: "Type de filament"

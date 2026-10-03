@@ -2,6 +2,11 @@
 substitutions:
   bambuddy_url: !secret bambuddy_url
   bambuddy_api_key: !secret bambuddy_api_key
+  # Lecteur NFC. Interne : ws1850s / internal_i2c / "0x28"
+  #             PN532 sur le port Grove A : pn532 / grove_i2c / "0x24"
+  nfc_reader: pn532
+  nfc_i2c: grove_i2c
+  nfc_address: "0x24"
 
 esphome:
   name: spool-reader-dial
@@ -47,9 +52,11 @@ packages:
   nfc: !include spool-reader-dial/hw-nfc.yaml
   fonts: !include spool-reader/ui-fonts.yaml
   bambuddy: !include spool-reader/api-bambuddy.yaml
+  bambuddy_ntag: !include spool-reader-dial/api-ntag.yaml
   styles: !include spool-reader-dial/ui-styles.yaml
   page_idle: !include spool-reader-dial/page-idle.yaml
   page_filament: !include spool-reader-dial/page-filament.yaml
   page_details: !include spool-reader-dial/page-details.yaml
   triggers: !include spool-reader-dial/pages-triggers.yaml
   controls: !include spool-reader-dial/controls.yaml
+  diag: !include spool-reader-dial/diag.yaml

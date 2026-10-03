@@ -4,6 +4,11 @@ i2c:
     sda: GPIO11
     scl: GPIO12
     frequency: 400kHz
+  # Port Grove A (fil jaune G13 = SDA, fil blanc G15 = SCL) : lecteur PN532 externe
+  - id: grove_i2c
+    sda: GPIO13
+    scl: GPIO15
+    frequency: 100kHz
 
 spi:
   - id: display_spi
@@ -27,6 +32,8 @@ touchscreen:
   - platform: ft5x06
     id: my_touchscreen
     i2c_id: internal_i2c
+    address: 0x38
+    interrupt_pin: GPIO14
 
 output:
   - platform: ledc

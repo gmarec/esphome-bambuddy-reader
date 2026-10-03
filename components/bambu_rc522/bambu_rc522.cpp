@@ -32,6 +32,9 @@ static const uint8_t REG_TX_ASK = 0x15;
 static const uint8_t REG_CRC_H = 0x21;
 static const uint8_t REG_CRC_L = 0x22;
 static const uint8_t REG_MOD_WIDTH = 0x24;
+static const uint8_t REG_RF_CFG = 0x26;
+static const uint8_t REG_CW_GSP = 0x28;
+static const uint8_t REG_MOD_GSP = 0x29;
 static const uint8_t REG_T_MODE = 0x2A;
 static const uint8_t REG_T_PRESCALER = 0x2B;
 static const uint8_t REG_T_RELOAD_H = 0x2C;
@@ -46,8 +49,10 @@ static const uint8_t CMD_SOFT_RESET = 0x0F;
 
 static const uint8_t PICC_WUPA = 0x52;
 static const uint8_t PICC_SEL_CL1 = 0x93;
+static const uint8_t PICC_SEL_CL2 = 0x95;
 static const uint8_t PICC_AUTH_KEY_A = 0x60;
 static const uint8_t PICC_READ = 0x30;
+static const uint8_t PICC_UL_WRITE = 0xA2;  // NTAG / Ultralight : ecriture d'une page de 4 octets
 static const uint8_t PICC_HLTA = 0x50;
 
 static const uint32_t IO_TIMEOUT_MS = 40;
@@ -150,36 +155,61 @@ bool BambuRc522::wakeup_() {
   uint8_t atqa[2];
   uint8_t len = sizeof(atqa), vb = 0;
   auto st = this->communicate_(CMD_TRANSCEIVE, 0x30, &cmd, 1, atqa, &len, &vb, 7, false);
-  return st == RC_OK && len == 2 && vb == 0;
+  if (st == RC_OK && len == 2 && vb == 0)
+    return true;
+  if (st != RC_TIMEOUT) {
+    this->stat_wupa_bad_++;
+    this->last_err_ = this->read_reg_(REG_ERROR);
+  }
+  return false;
 }
 
-bool BambuRc522::select_(std::vector<uint8_t> &uid) {
-  uint8_t buf[9];
-  uint8_t back[5];
-  uint8_t len = sizeof(back), vb = 0;
+bool BambuRc522::select_(std::vector<uint8_t> &uid, uint8_t &sak) {
+  // Niveau 1 (UID 4 octets, Bambu) puis niveau 2 si le SAK annonce un UID incomplet (NTAG : 7 octets)
+  static const uint8_t LEVELS[] = {PICC_SEL_CL1, PICC_SEL_CL2};
+  uid.clear();
+  for (uint8_t level : LEVELS) {
+    uint8_t buf[9];
+    uint8_t back[5];
+    uint8_t len = sizeof(back), vb = 0;
 
-  // Anticollision niveau 1
-  this->clear_bits_(REG_COLL, 0x80);
-  buf[0] = PICC_SEL_CL1;
-  buf[1] = 0x20;
-  if (this->communicate_(CMD_TRANSCEIVE, 0x30, buf, 2, back, &len, &vb, 0, false) != RC_OK || len != 5)
-    return false;
-  if ((back[0] ^ back[1] ^ back[2] ^ back[3]) != back[4])
-    return false;
+    // Anticollision
+    this->clear_bits_(REG_COLL, 0x80);
+    buf[0] = level;
+    buf[1] = 0x20;
+    if (this->communicate_(CMD_TRANSCEIVE, 0x30, buf, 2, back, &len, &vb, 0, false) != RC_OK || len != 5) {
+      this->stat_anticoll_fail_++;
+      this->last_err_ = this->read_reg_(REG_ERROR);
+      return false;
+    }
+    if ((back[0] ^ back[1] ^ back[2] ^ back[3]) != back[4]) {
+      this->stat_anticoll_fail_++;
+      return false;
+    }
 
-  // SELECT
-  buf[1] = 0x70;
-  memcpy(buf + 2, back, 5);
-  if (!this->calc_crc_(buf, 7, buf + 7))
-    return false;
-  uint8_t sak[3];
-  len = sizeof(sak);
-  if (this->communicate_(CMD_TRANSCEIVE, 0x30, buf, 9, sak, &len, &vb, 0, true) != RC_OK || len != 3)
-    return false;
+    // SELECT
+    buf[1] = 0x70;
+    memcpy(buf + 2, back, 5);
+    if (!this->calc_crc_(buf, 7, buf + 7))
+      return false;
+    uint8_t sak_buf[3];
+    len = sizeof(sak_buf);
+    if (this->communicate_(CMD_TRANSCEIVE, 0x30, buf, 9, sak_buf, &len, &vb, 0, true) != RC_OK || len != 3) {
+      this->stat_select_fail_++;
+      this->last_err_ = this->read_reg_(REG_ERROR);
+      return false;
+    }
 
-  // back[0] == 0x88 : tag de cascade (UID 7 octets) -> pas un tag Bambu, on garde l'UID partiel
-  uid.assign(back, back + 4);
-  return true;
+    if (sak_buf[0] & 0x04) {
+      // UID incomplet : back[0] est le tag de cascade 0x88, on garde les 3 octets suivants
+      uid.insert(uid.end(), back + 1, back + 4);
+      continue;
+    }
+    uid.insert(uid.end(), back, back + 4);
+    sak = sak_buf[0];
+    return true;
+  }
+  return false;
 }
 
 bool BambuRc522::authenticate_(uint8_t block, const uint8_t *key, const std::vector<uint8_t> &uid) {
@@ -188,9 +218,14 @@ bool BambuRc522::authenticate_(uint8_t block, const uint8_t *key, const std::vec
   buf[1] = block;
   memcpy(buf + 2, key, 6);
   memcpy(buf + 8, uid.data(), 4);
-  if (this->communicate_(CMD_MF_AUTHENT, 0x10, buf, sizeof(buf), nullptr, nullptr, nullptr, 0, false) != RC_OK)
+  auto st = this->communicate_(CMD_MF_AUTHENT, 0x10, buf, sizeof(buf), nullptr, nullptr, nullptr, 0, false);
+  uint8_t s2 = this->read_reg_(REG_STATUS2);
+  if (st != RC_OK || !(s2 & 0x08)) {
+    ESP_LOGW(TAG, "Auth bloc %u echouee (status %u, Status2 0x%02X, Error 0x%02X)", block, st, s2,
+             this->read_reg_(REG_ERROR));
     return false;
-  return (this->read_reg_(REG_STATUS2) & 0x08) != 0;  // MFCrypto1On
+  }
+  return true;
 }
 
 bool BambuRc522::read_block_(uint8_t block, std::vector<uint8_t> &out) {
@@ -199,9 +234,28 @@ bool BambuRc522::read_block_(uint8_t block, std::vector<uint8_t> &out) {
     return false;
   uint8_t back[18];
   uint8_t len = sizeof(back), vb = 0;
-  if (this->communicate_(CMD_TRANSCEIVE, 0x30, buf, 4, back, &len, &vb, 0, true) != RC_OK || len != 18)
+  auto st = this->communicate_(CMD_TRANSCEIVE, 0x30, buf, 4, back, &len, &vb, 0, true);
+  if (st != RC_OK || len != 18) {
+    ESP_LOGW(TAG, "Lecture bloc %u echouee (status %u, len %u, bits %u, Error 0x%02X)", block, st, len, vb,
+             this->read_reg_(REG_ERROR));
     return false;
+  }
   out.assign(back, back + 16);
+  return true;
+}
+
+bool BambuRc522::write_page_(uint8_t page, const uint8_t *data) {
+  uint8_t buf[8] = {PICC_UL_WRITE, page, data[0], data[1], data[2], data[3], 0, 0};
+  if (!this->calc_crc_(buf, 6, buf + 6))
+    return false;
+  uint8_t ack[1];
+  uint8_t len = sizeof(ack), vb = 0;
+  // Reponse attendue : ACK sur 4 bits (0xA)
+  if (this->communicate_(CMD_TRANSCEIVE, 0x30, buf, 8, ack, &len, &vb, 0, false) != RC_OK || len != 1 || vb != 4 ||
+      (ack[0] & 0x0F) != 0x0A) {
+    ESP_LOGW(TAG, "Ecriture page %u echouee", page);
+    return false;
+  }
   return true;
 }
 
@@ -216,10 +270,192 @@ void BambuRc522::halt_() {
 void BambuRc522::stop_crypto_() { this->clear_bits_(REG_STATUS2, 0x08); }
 
 // =====================================================================
+// Driver PN532 (I2C, module externe sur le port Grove)
+// =====================================================================
+// Trame : 00 00 FF LEN LCS D4 CMD... DCS 00. En I2C, chaque lecture commence par un octet
+// d'etat (0x01 = pret). Reference : PN532 User Manual (UM0701-02) et le composant pn532 d'ESPHome.
+
+static const uint8_t PN_CMD_GET_FIRMWARE = 0x02;
+static const uint8_t PN_CMD_SAM_CONFIG = 0x14;
+static const uint8_t PN_CMD_RF_CONFIG = 0x32;
+static const uint8_t PN_CMD_IN_DATA_EXCHANGE = 0x40;
+static const uint8_t PN_CMD_IN_LIST_PASSIVE = 0x4A;
+
+bool BambuRc522::pn_wait_ready_(uint32_t timeout_ms) {
+  uint32_t start = millis();
+  uint8_t status = 0;
+  while (millis() - start < timeout_ms) {
+    if (this->read(&status, 1) == i2c::ERROR_OK && status == 0x01)
+      return true;
+    delay(1);
+  }
+  return false;
+}
+
+bool BambuRc522::pn_command_(const std::vector<uint8_t> &cmd, std::vector<uint8_t> &resp, uint32_t timeout_ms) {
+  std::vector<uint8_t> frame = {0x00, 0x00, 0xFF};
+  uint8_t len = cmd.size() + 1;
+  frame.push_back(len);
+  frame.push_back(~len + 1);
+  frame.push_back(0xD4);
+  uint8_t sum = 0xD4;
+  for (auto b : cmd) {
+    frame.push_back(b);
+    sum += b;
+  }
+  frame.push_back(~sum + 1);
+  frame.push_back(0x00);
+  if (this->write(frame.data(), frame.size()) != i2c::ERROR_OK)
+    return false;
+
+  // ACK
+  static const uint8_t ACK[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
+  uint8_t ack[7];
+  if (!this->pn_wait_ready_(30) || this->read(ack, sizeof(ack)) != i2c::ERROR_OK || memcmp(ack + 1, ACK, 6) != 0)
+    return false;
+
+  // Reponse
+  if (!this->pn_wait_ready_(timeout_ms)) {
+    this->write(ACK, sizeof(ACK));  // annule la commande en cours
+    return false;
+  }
+  uint8_t buf[48];
+  if (this->read(buf, sizeof(buf)) != i2c::ERROR_OK)
+    return false;
+  size_t i = 1;  // buf[0] : octet d'etat
+  while (i + 1 < sizeof(buf) && !(buf[i] == 0x00 && buf[i + 1] == 0xFF))
+    i++;
+  i += 2;
+  if (i + 2 > sizeof(buf))
+    return false;
+  uint8_t flen = buf[i];
+  if (static_cast<uint8_t>(flen + buf[i + 1]) != 0 || flen < 2 || i + 2 + flen + 1 > sizeof(buf))
+    return false;
+  const uint8_t *d = &buf[i + 2];
+  if (d[0] != 0xD5 || d[1] != cmd[0] + 1)
+    return false;
+  uint8_t dsum = 0;
+  for (uint8_t k = 0; k <= flen; k++)
+    dsum += d[k];
+  if (dsum != 0)
+    return false;
+  resp.assign(d + 2, d + flen);
+  return true;
+}
+
+bool BambuRc522::pn_setup_() {
+  std::vector<uint8_t> r;
+  // Le PN532 peut ignorer la premiere trame apres mise sous tension
+  bool ok = false;
+  for (int i = 0; i < 3 && !ok; i++) {
+    ok = this->pn_command_({PN_CMD_GET_FIRMWARE}, r, 100) && r.size() >= 4;
+    if (!ok)
+      delay(50);
+  }
+  if (!ok)
+    return false;
+  this->version_ = r[0];  // 0x32 pour un PN532
+  this->pn_fw_ = (r[1] << 8) | r[2];
+  // Mode normal, sans IRQ
+  if (!this->pn_command_({PN_CMD_SAM_CONFIG, 0x01, 0x14, 0x00}, r, 100))
+    return false;
+  // MaxRetries : une seule tentative d'activation passive, sinon InListPassiveTarget bloque sans tag
+  return this->pn_command_({PN_CMD_RF_CONFIG, 0x05, 0x00, 0x01, 0x01}, r, 100);
+}
+
+bool BambuRc522::pn_detect_(std::vector<uint8_t> &uid, uint8_t &sak) {
+  std::vector<uint8_t> r;
+  // 1 cible, 106 kbps type A. Reponse : NbTg, Tg, SENS_RES(2), SEL_RES, NFCIDLength, NFCID...
+  if (!this->pn_command_({PN_CMD_IN_LIST_PASSIVE, 0x01, 0x00}, r, 100) || r.size() < 6 || r[0] == 0)
+    return false;
+  uint8_t n = r[5];
+  if (r.size() < 6u + n)
+    return false;
+  sak = r[4];
+  uid.assign(r.begin() + 6, r.begin() + 6 + n);
+  return true;
+}
+
+bool BambuRc522::pn_exchange_(const std::vector<uint8_t> &picc_cmd, std::vector<uint8_t> &out) {
+  std::vector<uint8_t> cmd = {PN_CMD_IN_DATA_EXCHANGE, 0x01};
+  cmd.insert(cmd.end(), picc_cmd.begin(), picc_cmd.end());
+  std::vector<uint8_t> r;
+  if (!this->pn_command_(cmd, r, 100) || r.empty() || (r[0] & 0x3F) != 0)
+    return false;
+  out.assign(r.begin() + 1, r.end());
+  return true;
+}
+
+// =====================================================================
+// Primitives communes aux deux lecteurs
+// =====================================================================
+
+bool BambuRc522::detect_(std::vector<uint8_t> &uid, uint8_t &sak) {
+  if (this->reader_ == READER_PN532)
+    return this->pn_detect_(uid, sak);
+  bool woke = this->wakeup_();
+  if (woke)
+    this->stat_wupa_ok_++;
+  return woke && this->select_(uid, sak);
+}
+
+bool BambuRc522::auth_(uint8_t block, const uint8_t *key, const std::vector<uint8_t> &uid) {
+  if (this->reader_ != READER_PN532)
+    return this->authenticate_(block, key, uid);
+  std::vector<uint8_t> cmd = {PICC_AUTH_KEY_A, block};
+  cmd.insert(cmd.end(), key, key + 6);
+  cmd.insert(cmd.end(), uid.begin(), uid.begin() + 4);
+  std::vector<uint8_t> out;
+  if (!this->pn_exchange_(cmd, out)) {
+    ESP_LOGW(TAG, "Auth bloc %u echouee (PN532)", block);
+    return false;
+  }
+  return true;
+}
+
+bool BambuRc522::read16_(uint8_t block, std::vector<uint8_t> &out) {
+  if (this->reader_ != READER_PN532)
+    return this->read_block_(block, out);
+  std::vector<uint8_t> r;
+  if (!this->pn_exchange_({PICC_READ, block}, r) || r.size() < 16) {
+    ESP_LOGW(TAG, "Lecture bloc %u echouee (PN532)", block);
+    return false;
+  }
+  out.assign(r.begin(), r.begin() + 16);
+  return true;
+}
+
+bool BambuRc522::write4_(uint8_t page, const uint8_t *data) {
+  if (this->reader_ != READER_PN532)
+    return this->write_page_(page, data);
+  std::vector<uint8_t> r;
+  if (!this->pn_exchange_({PICC_UL_WRITE, page, data[0], data[1], data[2], data[3]}, r)) {
+    ESP_LOGW(TAG, "Ecriture page %u echouee (PN532)", page);
+    return false;
+  }
+  return true;
+}
+
+void BambuRc522::end_session_() {
+  // PN532 : InListPassiveTarget reselectionne le tag au prochain poll, rien a faire
+  if (this->reader_ == READER_PN532)
+    return;
+  this->halt_();
+  this->stop_crypto_();
+}
+
+// =====================================================================
 // Cycle de vie ESPHome
 // =====================================================================
 
 void BambuRc522::setup() {
+  if (this->reader_ == READER_PN532) {
+    if (!this->pn_setup_()) {
+      ESP_LOGE(TAG, "PN532 : pas de reponse (cablage, adresse 0x24, interrupteurs en mode I2C ?)");
+      this->mark_failed();
+    }
+    return;
+  }
   if (!this->write_byte(REG_COMMAND, CMD_SOFT_RESET)) {
     ESP_LOGE(TAG, "Pas de reponse I2C du lecteur");
     this->mark_failed();
@@ -239,6 +475,11 @@ void BambuRc522::setup() {
   this->write_reg_(REG_T_RELOAD_L, 0xE8);
   this->write_reg_(REG_TX_ASK, 0x40);  // 100% ASK
   this->write_reg_(REG_MODE, 0x3D);    // CRC preset 0x6363
+  this->write_reg_(REG_RF_CFG, 0x70);  // gain reception max (48 dB) : meilleure portee
+  // Puissance d'emission max (conductance des sorties TX1/TX2, defaut 0x20 sur 0x3F) :
+  // c'est le champ emis qui alimente le tag passif, d'ou la portee
+  this->write_reg_(REG_CW_GSP, 0x3F);
+  this->write_reg_(REG_MOD_GSP, 0x3F);
 
   uint8_t tx = this->read_reg_(REG_TX_CONTROL);
   if ((tx & 0x03) != 0x03)
@@ -254,15 +495,29 @@ void BambuRc522::setup() {
 void BambuRc522::dump_config() {
   ESP_LOGCONFIG(TAG, "Bambu RC522 (I2C):");
   LOG_I2C_DEVICE(this);
-  ESP_LOGCONFIG(TAG, "  Version puce: 0x%02X", this->version_);
+  if (this->reader_ == READER_PN532) {
+    ESP_LOGCONFIG(TAG, "  Lecteur: PN532 (puce 0x%02X, firmware %u.%u)", this->version_, this->pn_fw_ >> 8,
+                  this->pn_fw_ & 0xFF);
+  } else {
+    ESP_LOGCONFIG(TAG, "  Lecteur: WS1850S interne (version 0x%02X)", this->version_);
+    ESP_LOGCONFIG(TAG, "  Gain RX: 0x%02X, puissance TX: 0x%02X", this->read_reg_(REG_RF_CFG),
+                  this->read_reg_(REG_CW_GSP));
+  }
   LOG_UPDATE_INTERVAL(this);
   if (this->is_failed())
     ESP_LOGE(TAG, "  Initialisation echouee");
 }
 
 void BambuRc522::update() {
+  if (this->diag_mode_) {
+    this->measure_signal_();
+    return;
+  }
+  this->log_stats_();
+  this->stat_polls_++;
   std::vector<uint8_t> uid;
-  if (!this->wakeup_() || !this->select_(uid)) {
+  uint8_t sak = 0;
+  if (!this->detect_(uid, sak)) {
     // Deux polls sans tag avant de declarer le retrait (evite les faux retraits)
     if (!this->current_uid_.empty() && ++this->miss_count_ >= 2) {
       this->current_uid_.clear();
@@ -273,9 +528,10 @@ void BambuRc522::update() {
     return;
   }
   this->miss_count_ = 0;
+  this->stat_select_ok_++;
 
   if (uid == this->current_uid_) {
-    this->halt_();
+    this->end_session_();
     return;
   }
   this->current_uid_ = uid;
@@ -290,9 +546,19 @@ void BambuRc522::update() {
     this->card_uid_sensor_->publish_state(s);
   }
 
-  ReadResult res = this->read_bambu_data_(uid);
-  this->halt_();
-  this->stop_crypto_();
+  // NTAG / Ultralight (SAK 0x00, UID 7 octets) : pas de donnees Bambu, l'identification se fait par l'UID
+  if (sak == 0x00 && uid.size() == 7) {
+    this->end_session_();
+    ESP_LOGI(TAG, "Tag NTAG detecte : %s", this->card_uid_sensor_ != nullptr
+                                                ? this->card_uid_sensor_->state.c_str() : "");
+    this->clear_bambu_sensors_();
+    for (auto *t : this->ntag_triggers_)
+      t->trigger();
+    return;
+  }
+
+  ReadResult res = this->read_bambu_data_(uid, sak);
+  this->end_session_();
 
   if (res == READ_OK) {
     for (auto *t : this->success_triggers_)
@@ -305,6 +571,105 @@ void BambuRc522::update() {
     this->current_uid_.clear();
   for (auto *t : this->error_triggers_)
     t->trigger();
+}
+
+// =====================================================================
+// Mode diagnostic : mesure du couplage tag <-> antenne
+// =====================================================================
+// La puce n'a pas de RSSI. On mesure donc :
+//  - fiabilite : % de cycles reveil + selection reussis au gain max
+//  - marge : nombre de paliers de gain de reception (18 -> 48 dB) auxquels le tag repond encore.
+//    Plus il repond a gain faible, plus le couplage est fort.
+
+void BambuRc522::set_diag_mode(bool on) {
+  this->diag_mode_ = on;
+  this->diag_score_ = 0;
+  this->diag_pct_ = 0;
+  if (!on) {
+    if (this->reader_ != READER_PN532)
+      this->write_reg_(REG_RF_CFG, 0x70);
+    this->current_uid_.clear();  // relire le tag present en sortie de diagnostic
+  }
+}
+
+bool BambuRc522::probe_() {
+  std::vector<uint8_t> uid;
+  uint8_t sak;
+  if (!this->detect_(uid, sak))
+    return false;
+  this->end_session_();
+  return true;
+}
+
+void BambuRc522::measure_signal_() {
+  // Paliers RxGain distincts : 18, 23, 33, 38, 43, 48 dB
+  static const uint8_t GAINS[] = {0x00, 0x10, 0x40, 0x50, 0x60, 0x70};
+  static const uint8_t N_GAINS = sizeof(GAINS);
+  static const uint8_t TRIES = 6;
+
+  if (this->reader_ == READER_PN532) {
+    // Pas d'acces aux registres RF : fiabilite seule, ramenee sur 6
+    uint8_t ok = 0;
+    for (uint8_t i = 0; i < TRIES; i++)
+      ok += this->probe_();
+    uint8_t pct = ok * 100 / TRIES;
+    if (pct != this->diag_pct_)
+      ESP_LOGD(TAG, "Signal (PN532) : fiabilite %u%%", pct);
+    this->diag_pct_ = pct;
+    this->diag_score_ = ok * N_GAINS / TRIES;
+    return;
+  }
+
+  // Timer court (~2 ms) : un tag repond en < 1 ms, inutile d'attendre 25 ms a chaque echec
+  this->write_reg_(REG_T_RELOAD_H, 0x00);
+  this->write_reg_(REG_T_RELOAD_L, 0x50);
+
+  this->write_reg_(REG_RF_CFG, 0x70);
+  uint8_t ok = 0;
+  for (uint8_t i = 0; i < TRIES; i++)
+    ok += this->probe_();
+
+  // Marge : du gain le plus faible vers le plus fort, on s'arrete au premier palier qui repond 2 fois sur 2
+  uint8_t score = 0;
+  if (ok > 0) {
+    for (uint8_t g = 0; g < N_GAINS; g++) {
+      this->write_reg_(REG_RF_CFG, GAINS[g]);
+      if (this->probe_() && this->probe_()) {
+        score = N_GAINS - g;
+        break;
+      }
+    }
+  }
+
+  this->write_reg_(REG_RF_CFG, 0x70);
+  this->write_reg_(REG_T_RELOAD_H, 0x03);
+  this->write_reg_(REG_T_RELOAD_L, 0xE8);
+
+  uint8_t pct = ok * 100 / TRIES;
+  if (score != this->diag_score_ || pct != this->diag_pct_)
+    ESP_LOGD(TAG, "Signal : marge %u/%u, fiabilite %u%%", score, N_GAINS, pct);
+  this->diag_score_ = score;
+  this->diag_pct_ = pct;
+
+  this->stat_polls_ = this->stat_wupa_ok_ = this->stat_wupa_bad_ = 0;
+  this->stat_anticoll_fail_ = this->stat_select_fail_ = this->stat_select_ok_ = 0;
+}
+
+// Diagnostic de portee : resume toutes les 2 s, seulement si un tag a repondu (meme partiellement)
+void BambuRc522::log_stats_() {
+  uint32_t now = millis();
+  if (now - this->stat_since_ < 2000)
+    return;
+  if (this->stat_wupa_ok_ || this->stat_wupa_bad_ || this->stat_anticoll_fail_ || this->stat_select_fail_) {
+    ESP_LOGD(TAG, "Diag %us : polls=%u reveil_ok=%u reveil_partiel=%u anticoll_ko=%u select_ko=%u select_ok=%u err=0x%02X",
+             (unsigned) ((now - this->stat_since_) / 1000), this->stat_polls_, this->stat_wupa_ok_,
+             this->stat_wupa_bad_, this->stat_anticoll_fail_, this->stat_select_fail_, this->stat_select_ok_,
+             this->last_err_);
+  }
+  this->stat_since_ = now;
+  this->stat_polls_ = this->stat_wupa_ok_ = this->stat_wupa_bad_ = 0;
+  this->stat_anticoll_fail_ = this->stat_select_fail_ = this->stat_select_ok_ = 0;
+  this->last_err_ = 0;
 }
 
 // =====================================================================
@@ -346,9 +711,9 @@ static bool hkdf_sha256(const uint8_t *salt, size_t salt_len, const uint8_t *ikm
   return true;
 }
 
-BambuRc522::ReadResult BambuRc522::read_bambu_data_(const std::vector<uint8_t> &uid) {
-  if (uid.size() != 4 || uid[0] == 0x88) {
-    ESP_LOGW(TAG, "UID non 4 octets : pas un tag Bambu");
+BambuRc522::ReadResult BambuRc522::read_bambu_data_(const std::vector<uint8_t> &uid, uint8_t sak) {
+  if (uid.size() != 4 || (sak != 0x08 && sak != 0x18)) {
+    ESP_LOGW(TAG, "Tag non MIFARE Classic (SAK 0x%02X, UID %u octets) : pas un tag Bambu", sak, (unsigned) uid.size());
     return READ_NOT_BAMBU;
   }
 
@@ -361,22 +726,22 @@ BambuRc522::ReadResult BambuRc522::read_bambu_data_(const std::vector<uint8_t> &
 
   std::vector<uint8_t> b1, b2, b4, b5, b6, b8, b9, b10, b12, b14;
 
-  if (!this->authenticate_(3, &keys[0], uid)) {
+  if (!this->auth_(3, &keys[0], uid)) {
     ESP_LOGW(TAG, "Auth secteur 0 refusee : pas un tag Bambu ?");
     return READ_NOT_BAMBU;
   }
-  if (!this->read_block_(1, b1) || !this->read_block_(2, b2))
+  if (!this->read16_(1, b1) || !this->read16_(2, b2))
     return READ_FAILED;
 
-  if (!this->authenticate_(7, &keys[6], uid) || !this->read_block_(4, b4) || !this->read_block_(5, b5) ||
-      !this->read_block_(6, b6))
+  if (!this->auth_(7, &keys[6], uid) || !this->read16_(4, b4) || !this->read16_(5, b5) ||
+      !this->read16_(6, b6))
     return READ_FAILED;
 
-  if (!this->authenticate_(11, &keys[12], uid) || !this->read_block_(8, b8) || !this->read_block_(9, b9) ||
-      !this->read_block_(10, b10))
+  if (!this->auth_(11, &keys[12], uid) || !this->read16_(8, b8) || !this->read16_(9, b9) ||
+      !this->read16_(10, b10))
     return READ_FAILED;
 
-  if (!this->authenticate_(15, &keys[18], uid) || !this->read_block_(12, b12) || !this->read_block_(14, b14))
+  if (!this->auth_(15, &keys[18], uid) || !this->read16_(12, b12) || !this->read16_(14, b14))
     return READ_FAILED;
 
   this->publish_bambu_data_(uid, b1, b2, b4, b5, b6, b8, b9, b10, b12, b14);
@@ -509,6 +874,11 @@ void BambuRc522::publish_bambu_data_(const std::vector<uint8_t> &uid, const std:
 void BambuRc522ResetButton::press_action() { this->parent_->clear_sensors(); }
 
 void BambuRc522::clear_sensors() {
+  this->clear_bambu_sensors_();
+  this->current_uid_.clear();
+}
+
+void BambuRc522::clear_bambu_sensors_() {
   text_sensor::TextSensor *ts[] = {filament_type_sensor_,  filament_color_sensor_, filament_color_name_sensor_,
                                    filament_subtype_sensor_, tray_uid_sensor_,     tray_info_idx_sensor_,
                                    variant_id_sensor_,       production_date_sensor_, last_scan_date_sensor_};
@@ -521,7 +891,6 @@ void BambuRc522::clear_sensors() {
   for (auto *s : ns)
     if (s != nullptr)
       s->publish_state(NAN);
-  this->current_uid_.clear();
 }
 
 }  // namespace bambu_rc522

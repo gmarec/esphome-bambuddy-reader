@@ -1,0 +1,141 @@
+## Tags NTAG (non Bambu) : identification par l'UID aupres de BambuBuddy.
+## Le tag ne porte pas (encore) de donnees lues ici : la fiche est remplie depuis la bobine BambuBuddy
+## liee a cet UID. Tag inconnu : l'UID s'affiche pour pouvoir le lier dans BambuBuddy.
+
+script:
+  - id: bambuddy_ntag_lookup
+    mode: single
+    then:
+      - lambda: |-
+          id(bb_tray_uid) = "";
+          id(bb_spool_found) = false;
+          id(bb_spool_id) = 0;
+          id(bb_error) = false;
+          ESP_LOGI("bambuddy", "Recherche tag NTAG: %s", id(card_uid_sens).state.c_str());
+
+      # 1. Bobine liee a cet UID ?
+      - http_request.post:
+          url: "${bambuddy_url}/api/v1/spoolbuddy/nfc/tag-scanned"
+          request_headers:
+            Content-Type: application/json
+            X-API-Key: "${bambuddy_api_key}"
+          json: |-
+            root["device_id"] = "esphome-spool-reader";
+            root["tag_uid"] = id(card_uid_sens).state;
+            root["tag_type"] = "ntag";
+          capture_response: true
+          max_response_buffer_size: 512
+          on_response:
+            then:
+              - lambda: |-
+                  if (response->status_code != 200) {
+                    ESP_LOGW("bambuddy", "tag-scanned failed: %d", response->status_code);
+                    id(bb_error) = true;
+                    return;
+                  }
+                  if (body.find("\"matched\":true") == std::string::npos)
+                    return;
+                  size_t pos = body.find("\"spool_id\":");
+                  if (pos != std::string::npos) {
+                    id(bb_spool_id) = atoi(body.c_str() + pos + 11);
+                    id(bb_spool_found) = id(bb_spool_id) > 0;
+                  }
+          on_error:
+            then:
+              - lambda: 'id(bb_error) = true;'
+
+      # 2. Inconnu ou erreur : message sur l'accueil
+      - if:
+          condition:
+            lambda: 'return !id(bb_spool_found);'
+          then:
+            - lambda: 'id(current_page) = 0;'
+            - lvgl.page.show: page_idle
+            - lvgl.label.update:
+                id: error_label
+                text: !lambda |-
+                  static std::string s;
+                  if (id(bb_error))
+                    s = "BambuBuddy injoignable";
+                  else
+                    s = "Tag inconnu\n" + id(card_uid_sens).state;
+                  return s.c_str();
+            - rtttl.play: "err:d=8,o=4,b=160:c"
+            - delay: 6s
+            - lvgl.label.update:
+                id: error_label
+                text: ""
+            - script.stop: bambuddy_ntag_lookup
+
+      # 3. Bobine trouvee : remplir les capteurs filament depuis BambuBuddy
+      - http_request.get:
+          url: !lambda |-
+            return std::string("${bambuddy_url}/api/v1/inventory/spools/") + std::to_string(id(bb_spool_id));
+          request_headers:
+            X-API-Key: "${bambuddy_api_key}"
+          capture_response: true
+          max_response_buffer_size: 4096
+          on_response:
+            then:
+              - lambda: |-
+                  if (response->status_code != 200) {
+                    ESP_LOGW("bambuddy", "GET spool/%d failed: %d", id(bb_spool_id), response->status_code);
+                    id(bb_spool_found) = false;
+                    return;
+                  }
+                  // Champs de premier niveau (ils precedent les listes imbriquees dans la reponse)
+                  auto str_field = [&](const char *key) -> std::string {
+                    std::string k = std::string("\"") + key + "\":";
+                    size_t p = body.find(k);
+                    if (p == std::string::npos) return "";
+                    p += k.size();
+                    if (p >= body.size() || body[p] != '"') return "";  // null
+                    size_t e = body.find('"', p + 1);
+                    return e == std::string::npos ? "" : body.substr(p + 1, e - p - 1);
+                  };
+                  auto num_field = [&](const char *key) -> float {
+                    std::string k = std::string("\"") + key + "\":";
+                    size_t p = body.find(k);
+                    if (p == std::string::npos) return NAN;
+                    p += k.size();
+                    if (body.compare(p, 4, "null") == 0) return NAN;
+                    return atof(body.c_str() + p);
+                  };
+
+                  std::string rgba = str_field("rgba");
+                  std::string hex = rgba.size() >= 6 ? "#" + rgba.substr(0, 6) : "";
+                  for (auto &c : hex) c = toupper(c);
+                  std::string color_name = str_field("color_name");
+
+                  id(filament_type_sens).publish_state(str_field("material"));
+                  id(filament_subtype_sens).publish_state(str_field("subtype"));
+                  id(filament_color_sens).publish_state(hex);
+                  id(filament_color_name_sens).publish_state(color_name.empty() ? hex : color_name);
+                  id(tray_info_idx_sens).publish_state(str_field("slicer_filament"));
+                  id(variant_id_sens).publish_state("");
+                  id(tray_uid_sens).publish_state("");
+                  id(min_hotend_temp_sens).publish_state(num_field("nozzle_temp_min"));
+                  id(max_hotend_temp_sens).publish_state(num_field("nozzle_temp_max"));
+
+                  float label = num_field("label_weight");
+                  if (std::isnan(label) || label <= 0) label = 1000.0f;
+                  float used = num_field("weight_used");
+                  if (std::isnan(used)) used = 0.0f;
+                  id(spool_weight_sens).publish_state(label);
+                  id(bb_remaining_weight).publish_state(label - used);
+                  ESP_LOGI("bambuddy", "Bobine NTAG id=%d : %s, restant %.0f g", id(bb_spool_id),
+                           id(filament_type_sens).state.c_str(), label - used);
+
+      - if:
+          condition:
+            lambda: 'return id(bb_spool_found);'
+          then:
+            - script.execute: show_filament
+            # Poids restant (apres show_filament, qui remet les libelles a zero)
+            - lambda: |-
+                char buf[16];
+                snprintf(buf, sizeof(buf), "%.0f g", id(bb_remaining_weight).state);
+                lv_label_set_text(id(lbl_remaining), buf);
+                lv_obj_set_style_text_color(id(lbl_remaining),
+                  lv_color_hex(id(color_lum) > 0.5f ? 0x000000 : 0xFFFFFF), 0);
+                lv_label_set_text(id(lbl_detail_remaining), buf);

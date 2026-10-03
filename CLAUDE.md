@@ -11,14 +11,22 @@ Branche `m5dial` : portage sur M5Stack Dial (ESP32-S3 StampS3, sans PSRAM).
 - `spool-reader-dial.yaml` + `spool-reader-dial/` : config Dial (mipi_spi GC9A01A, ft5x06, encodeur 40/41,
   bouton 42, buzzer 3, rétroéclairage 9, power hold 46), UI LVGL ronde 240×240.
 - Réutilisés tels quels : `spool-reader/api-bambuddy.yaml`, `spool-reader/ui-fonts.yaml`.
-- `esphome config` OK (2026.9.1). Jamais compilé pour la cible ni testé sur le matériel.
+- Option `reader: ws1850s | pn532` (substitutions `nfc_*` de spool-reader-dial.yaml). PN532 : port Grove A
+  (bus `grove_i2c`, G13 SDA / G15 SCL, 0x24), driver I2C maison dans le meme composant.
+- Tags NTAG (UID 7 octets, SAK 0x00) : trigger `on_ntag_tag` -> `spool-reader-dial/api-ntag.yaml`
+  (identification par UID aupres de BambuBuddy, fiche remplie depuis la bobine). Ecriture NTAG : primitive
+  `write4_` prete, pas encore branchee (prochaine etape : appareil SpoolBuddy + ecriture OpenTag3D).
+- Mode diagnostic signal : `spool-reader-dial/diag.yaml` (appui court depuis l'accueil).
 
-## A valider sur le matériel
-1. Compilation complète (`esphome compile spool-reader-dial.yaml`).
-2. Lecture RFID : logs `bambu_rc522` (auth secteur 0, lecture blocs 1-14).
-3. Sens du bouton GPIO42 (`inverted` dans controls.yaml).
-4. Mémoire : buffer LVGL 25 % (descendre à 12 % si reboot).
-5. Rendu UI sur l'écran rond, défilement encodeur de la page détails.
+## Valide sur le materiel (ESPHome 2026.6.5)
+- Compilation, wifi, ecran, tactile (FT3267 a 0x38, IRQ GPIO14), lecture tags Bambu, synchro BambuBuddy.
+- Portee du lecteur interne tres faible (petite antenne) : gain RX 48 dB + puissance TX max appliques,
+  insuffisant en usage -> PN532 externe.
+
+## A valider sur le materiel
+1. Non-regression lecteur interne apres la refonte PN532/NTAG (compile, pas encore flashe).
+2. PN532 : detection, lecture Bambu, NTAG ; niveaux 5 V du module sur le Grove.
+3. Sens du bouton GPIO42, defilement encodeur, buffer LVGL 25 %.
 
 ## Commandes
 - `esphome config spool-reader-dial.yaml`
