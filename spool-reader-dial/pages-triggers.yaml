@@ -27,7 +27,7 @@ bambu_rc522:
       - lvgl.page.show: page_idle
       - lvgl.label.update:
           id: error_label
-          text: "Tag not read"
+          text: "${t_tag_not_read}"
       - delay: 3s
       - lvgl.label.update:
           id: error_label

@@ -7,6 +7,8 @@ substitutions:
   nfc_reader: pn532
   nfc_i2c: grove_i2c
   nfc_address: "0x24"
+  # On-screen text (English). spool-reader-dial-fr.yaml builds the same firmware in French.
+  <<: !include spool-reader-dial/lang-en.yaml
 
 esphome:
   name: spool-reader-dial

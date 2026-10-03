@@ -1,0 +1,6 @@
+# Same firmware as spool-reader-dial.yaml, with the on-screen text in French.
+# Flash with: esphome run spool-reader-dial-fr.yaml
+substitutions: !include spool-reader-dial/lang-fr.yaml
+
+packages:
+  dial: !include spool-reader-dial.yaml

@@ -71,12 +71,12 @@ interval:
                 uint8_t pct = id(nfc_reader).get_diag_pct();
                 char buf[32];
                 if (pct == 0) {
-                  lv_label_set_text(id(lbl_diag), "No tag");
+                  lv_label_set_text(id(lbl_diag), "${t_no_tag}");
                   lv_label_set_text(id(lbl_diag_sub), "");
                 } else {
-                  snprintf(buf, sizeof(buf), "Signal: %u / 6", score);
+                  snprintf(buf, sizeof(buf), "${t_signal}: %u / 6", score);
                   lv_label_set_text(id(lbl_diag), buf);
-                  snprintf(buf, sizeof(buf), "Reliability %u %%", pct);
+                  snprintf(buf, sizeof(buf), "${t_reliability} %u %%", pct);
                   lv_label_set_text(id(lbl_diag_sub), buf);
                 }
                 lv_bar_set_value(id(bar_diag), score, LV_ANIM_OFF);

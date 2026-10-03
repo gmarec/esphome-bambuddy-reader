@@ -68,9 +68,16 @@ distance. The internal reader is still selectable with the `nfc_*` substitutions
 3. From the Home Assistant ESPHome add-on: copy `spool-reader-dial.yaml`, `spool-reader/` and `spool-reader-dial/`,
    and point `external_components` to `github://gmarec/esphome-bambuddy-reader/components@m5dial`.
 
+## Language
+
+On-screen text comes from `spool-reader-dial/lang-en.yaml` (default). To build the same firmware in French, flash
+`spool-reader-dial-fr.yaml`, which applies `spool-reader-dial/lang-fr.yaml`. Another language only needs a new
+`lang-xx.yaml` with the same keys (using characters available in the fonts) and a matching wrapper file.
+Home Assistant entity names stay in English.
+
 ## Controls
 
-- **Scan**: hold the side of the spool against the reader, near the centre hole (that is where Bambu tags sit).
+- **Scan**: hold the back of the Dial (PN532 side) near the spool's centre hole, where Bambu tags sit.
 - **Short press**: filament card ⇄ details. On the idle screen: toggles the signal diagnostic.
 - **Encoder**: on the filament card, opens the details; on the details, scrolls the list.
 - **Long press**: adds the spool to BambuBuddy if it is unknown, otherwise goes back to the idle screen.

@@ -96,14 +96,14 @@ lvgl:
             align: CENTER
             y: 28
             width: 200
-            text: "Scan a filament"
+            text: "${t_scan_title}"
             styles: style_text_primary
         - label:
             id: lbl_idle_hint
             align: CENTER
             y: 56
             width: 200
-            text: "Place the spool"
+            text: "${t_scan_hint}"
             styles: style_text_secondary
         # Signal diagnostic mode (hidden by default)
         - label:
@@ -111,7 +111,7 @@ lvgl:
             align: CENTER
             y: 24
             width: 200
-            text: "Signal: --"
+            text: "${t_signal}: --"
             styles: style_text_primary
             hidden: true
         - bar:

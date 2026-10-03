@@ -56,9 +56,9 @@ script:
                 text: !lambda |-
                   static std::string s;
                   if (id(bb_error))
-                    s = "BambuBuddy unreachable";
+                    s = "${t_bb_unreachable}";
                   else
-                    s = "Unknown tag\n" + id(card_uid_sens).state;
+                    s = "${t_unknown_tag}\n" + id(card_uid_sens).state;
                   return s.c_str();
             - rtttl.play: "err:d=8,o=4,b=160:c"
             - delay: 6s

@@ -76,6 +76,6 @@ lvgl:
                   widgets:
                     - label:
                         align: CENTER
-                        text: "Add"
+                        text: "${t_add}"
                         text_color: 0x00AE42
                         text_font: font_small
