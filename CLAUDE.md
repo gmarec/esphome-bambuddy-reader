@@ -28,10 +28,14 @@ in English.**
   - `pages-triggers.yaml`: `show_filament` script shared by Bambu and NTAG scans.
 - Reused unchanged from upstream: `spool-reader/api-bambuddy.yaml`, `spool-reader/ui-fonts.yaml` (still French;
   upstream files, left as-is to ease merges).
+- `components/spoolbuddy/`: registers with BambuBuddy as a SpoolBuddy device + heartbeat every 15 s
+  (offline threshold 30 s), esp_http_client in a FreeRTOS task on core 0. device_id `esphome-spool-reader`
+  (same as the shared tag-scanned calls). Heartbeat returns `pending_command` (e.g. `write_tag`), logged only.
 - `hardware/handle/`: 3D-printed handle (Dial + PN532), not designed yet.
 
 ## Validated on hardware (ESPHome 2026.6.5)
 - Build, Wi-Fi, display, touch, Bambu tag reading and BambuBuddy sync with the internal reader.
+- SpoolBuddy registration + heartbeat: device listed online in BambuBuddy (2026-10-04).
 - Internal reader range is millimetres (tiny antenna) even at max gain/power → switched to an external PN532.
 
 ## To validate on hardware
@@ -40,12 +44,13 @@ in English.**
 3. Button GPIO42 polarity, encoder scrolling, LVGL buffer 25 % (drop to 12 % if it reboots).
 
 ## Next steps
-- Make the Dial a SpoolBuddy-compatible device (`/devices/register`, `/devices/{id}/heartbeat`,
-  `/nfc/write-tag` → write OpenTag3D bytes with `write4_`, `/nfc/write-result`).
+- Handle `write_tag` from the heartbeat: parse `pending_write_payload.ndef_data_hex`, ask for a blank NTAG,
+  write it with `write4_` from page 4, report `/nfc/write-result`.
 
 ## Commands
 - `esphome config spool-reader-dial.yaml`
 - `esphome run spool-reader-dial.yaml --device /dev/cu.usbmodem*` (first flash) or `--device 192.168.78.8`
+- The maintainer's own Dial uses the French UI: flash `spool-reader-dial-fr.yaml`.
 - `esphome logs spool-reader-dial.yaml`
 
 Secrets: `secrets.yaml` (wifi, api key, ota, bambuddy_url, bambuddy_api_key) — never commit.

@@ -1,0 +1,29 @@
+## Registers the Dial with BambuBuddy as a SpoolBuddy device (shown in BambuBuddy's SpoolBuddy page)
+## and keeps it online with a heartbeat every 15 s. HTTP runs in a background task: no UI freeze.
+## The sync icon on the idle screen shows the link state: green = online, orange = error, grey = connecting.
+
+spoolbuddy:
+  id: spoolbuddy_device
+  url: "${bambuddy_url}"
+  api_key: "${bambuddy_api_key}"
+  # Same device_id as the /nfc/tag-scanned calls (spool-reader/api-bambuddy.yaml, api-ntag.yaml),
+  # so BambuBuddy attributes the scans to this device
+  device_id: esphome-spool-reader
+  hostname: spool-reader-dial
+  nfc_reader: nfc_reader
+  nfc_reader_type: "${nfc_reader}"
+  nfc_connection: i2c
+
+interval:
+  - interval: 2s
+    then:
+      - lambda: |-
+          using esphome::spoolbuddy::LinkState;
+          static int last = -1;
+          int st = (int) id(spoolbuddy_device).get_state();
+          if (st == last) return;
+          last = st;
+          uint32_t col = 0x555555;  // connecting / not configured
+          if (st == (int) LinkState::ONLINE) col = 0x00AE42;
+          else if (st == (int) LinkState::ERROR) col = 0xFF8C00;
+          lv_obj_set_style_image_recolor(id(img_sync), lv_color_hex(col), 0);

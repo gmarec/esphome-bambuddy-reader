@@ -28,7 +28,7 @@ external_components:
   - source:
       type: local
       path: components
-    components: [bambu_rc522]
+    components: [bambu_rc522, spoolbuddy]
 
 logger:
 
@@ -55,6 +55,7 @@ packages:
   fonts: !include spool-reader/ui-fonts.yaml
   bambuddy: !include spool-reader/api-bambuddy.yaml
   bambuddy_ntag: !include spool-reader-dial/api-ntag.yaml
+  spoolbuddy: !include spool-reader-dial/spoolbuddy.yaml
   styles: !include spool-reader-dial/ui-styles.yaml
   page_idle: !include spool-reader-dial/page-idle.yaml
   page_filament: !include spool-reader-dial/page-filament.yaml

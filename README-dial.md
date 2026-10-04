@@ -108,12 +108,19 @@ That is enough in practice, because BambuBuddy holds the spool data and, once a 
 sends the filament settings to the printer (`ams_filament_setting`: type, colour, temperatures, plus the K-factor
 calibration via `extrusion_cali_sel`).
 
+### SpoolBuddy device
+
+The Dial registers itself with BambuBuddy as a SpoolBuddy device (`components/spoolbuddy`,
+`spool-reader-dial/spoolbuddy.yaml`): it shows up in BambuBuddy's SpoolBuddy devices as `spool-reader-dial`
+(device id `esphome-spool-reader`, PN532 over I2C, no scale) and sends a heartbeat every 15 s (BambuBuddy marks a
+device offline after 30 s). Requests run in a background task, so the UI never freezes. The sync icon on the idle
+screen shows the link: green = online, orange = error, grey = connecting.
+
 ### Planned: write tags from the Dial
 
 Make the Dial a SpoolBuddy-compatible device so non-Bambu spools can be tagged from BambuBuddy:
 
-1. The Dial registers as a device (`/api/v1/spoolbuddy/devices/register`) and polls
-   `/devices/{id}/heartbeat`.
+1. The Dial registers as a device and polls `/devices/{id}/heartbeat` (done, see above).
 2. In BambuBuddy, "write tag" on a spool queues a `write_tag` command with the OpenTag3D NDEF bytes, ready to write
    from NTAG page 4 (`/nfc/write-tag`).
 3. The Dial asks for a blank NTAG215 sticker, writes the pages (`write4_` in the component) and reports
