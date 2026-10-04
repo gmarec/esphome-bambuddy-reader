@@ -131,6 +131,7 @@ script:
             lambda: 'return id(bb_spool_found);'
           then:
             - script.execute: show_filament
+            - script.execute: scale_sync_weight
             # Remaining weight (after show_filament, which resets the labels)
             - lambda: |-
                 char buf[16];

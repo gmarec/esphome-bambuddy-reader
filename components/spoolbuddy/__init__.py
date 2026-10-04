@@ -1,8 +1,10 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome.components import sensor
 from esphome.const import CONF_ID
 
 DEPENDENCIES = ["network", "http_request"]
+AUTO_LOAD = ["sensor"]
 CODEOWNERS = []
 
 CONF_URL = "url"
@@ -13,6 +15,7 @@ CONF_HEARTBEAT_INTERVAL = "heartbeat_interval"
 CONF_NFC_READER = "nfc_reader"
 CONF_NFC_READER_TYPE = "nfc_reader_type"
 CONF_NFC_CONNECTION = "nfc_connection"
+CONF_SCALE = "scale"
 
 spoolbuddy_ns = cg.esphome_ns.namespace("spoolbuddy")
 SpoolBuddy = spoolbuddy_ns.class_("SpoolBuddy", cg.Component)
@@ -35,6 +38,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_NFC_READER): cv.use_id(cg.Component),
         cv.Optional(CONF_NFC_READER_TYPE, default="pn532"): cv.All(cv.string, cv.Length(max=20)),
         cv.Optional(CONF_NFC_CONNECTION, default="i2c"): cv.All(cv.string, cv.Length(max=20)),
+        # Raw load-cell sensor (e.g. hx711 without filters): enables the SpoolBuddy scale protocol
+        cv.Optional(CONF_SCALE): cv.use_id(sensor.Sensor),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -52,3 +57,6 @@ async def to_code(config):
     if CONF_NFC_READER in config:
         reader = await cg.get_variable(config[CONF_NFC_READER])
         cg.add(var.set_nfc_reader(reader))
+    if CONF_SCALE in config:
+        scale = await cg.get_variable(config[CONF_SCALE])
+        cg.add(var.set_scale(scale))

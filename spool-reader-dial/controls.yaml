@@ -85,5 +85,20 @@ binary_sensor:
                 - script.execute: bambuddy_add_spool
                 - rtttl.play: "add:d=16,o=6,b=200:c,e,g"
               else:
-                - lambda: 'id(current_page) = 0;'
-                - lvgl.page.show: page_idle
+                - if:
+                    condition:
+                      lambda: 'return id(current_page) == 0;'
+                    then:
+                      # Idle screen: tare the scale
+                      - lambda: 'id(spoolbuddy_device).tare();'
+                      - rtttl.play: "tare:d=16,o=6,b=200:c,c"
+                      - lvgl.label.update:
+                          id: error_label
+                          text: "${t_tared}"
+                      - delay: 2s
+                      - lvgl.label.update:
+                          id: error_label
+                          text: ""
+                    else:
+                      - lambda: 'id(current_page) = 0;'
+                      - lvgl.page.show: page_idle

@@ -2,18 +2,21 @@
 
 Branch `m5dial`: the same features as the Waveshare build (Bambu Lab tag reading, Home Assistant sensors,
 BambuBuddy sync) on an **M5Stack Dial** (ESP32-S3, round 240×240 touch screen, rotary encoder, button, buzzer),
-with an external **PN532** NFC reader plugged into the Dial's Grove port.
+with an external **PN532** NFC reader and a **load-cell scale**. The Dial registers with BambuBuddy as a SpoolBuddy
+device (NFC + scale).
 
 ## Hardware
 
 | Part | Details |
 |---|---|
 | [M5Stack Dial](https://docs.m5stack.com/en/core/M5Dial) | ESP32-S3FN8, 8 MB flash, no PSRAM; 1.28" round 240×240 GC9A01 display, FT3267 touch, rotary encoder, built-in button, buzzer, BM8563 RTC |
-| NFC reader | PN532 module ("NFC V3", red), DIP switches set to **I2C**, address `0x24` |
-| Cable | Grove (HY2.0-4P) to female Dupont, Dial port A → PN532 |
-| Battery | 3.7 V LiPo **200 mAh** on the Dial's battery connector (MX1.25-2P) |
+| NFC reader | PN532 module ("NFC V3", red), DIP switches set to **I2C**, address `0x24`, powered at 3.3 V |
+| Scale | 5 kg bar load cell + HX711 24-bit ADC module (green "HW-29" board), powered at 3.3 V |
+| 3.3 V regulator | AMS1117-3.3 mini module (VIN / OUT / GND, 800 mA max), fed from the Grove 5 V |
+| Cables | 2 × Grove (HY2.0-4P) to female Dupont (ports A and B) |
+| Power supply | USB-C 5 V, 1 A or more (no battery) |
 | External button | push button — wiring and function to be defined |
-| Handle | 3D-printed, holds the Dial and the PN532 ([`hardware/handle/`](hardware/handle/)) |
+| Enclosure | 3D-printed station: scale platter, PN532 under it, Dial on the side ([`hardware/station/`](hardware/station/)) |
 
 ### Pins used
 
@@ -22,35 +25,48 @@ with an external **PN532** NFC reader plugged into the Dial's Grove port.
 | Display SPI | CLK 6, MOSI 5, CS 7, DC 4, RST 8 | GC9A01 |
 | Backlight | 9 | LEDC PWM, "Brightness" light in Home Assistant |
 | Internal I2C | SDA 11, SCL 12 | touch `0x38` (IRQ 14), RTC `0x51` |
-| Grove port A I2C | SDA 13 (yellow), SCL 15 (white) | PN532 `0x24`, 100 kHz |
+| Grove port A (I2C) | SDA 13 (yellow), SCL 15 (white) | PN532 `0x24`, 100 kHz |
+| Grove port B | DT 2 (yellow), SCK 1 (white) | HX711 |
 | Encoder | A 40, B 41 | swap them if scrolling goes the wrong way |
 | Button | 42 | built-in button |
 | Buzzer | 3 | LEDC PWM, RTTTL sounds |
-| Power hold | 46 | kept high so the Dial stays on when running from the battery |
+| Power hold | 46 | kept high (only matters on battery) |
 
-### PN532 wiring
+### Wiring
 
-1. Set the PN532 DIP switches to **I2C** (see the module's silkscreen).
-2. With the Dial **powered off**, wire Grove port A to the PN532:
+Both Grove ports supply **5 V**, but ESP32 pins only accept 3.3 V: the PN532 and the HX711 are powered at **3.3 V**
+from the regulator, so their signal lines stay at 3.3 V. Wire everything with the Dial **unplugged**, and check with
+a multimeter that the regulator's OUT pin reads 3.3 V before connecting the modules.
 
-   | Grove wire | PN532 pin |
-   |---|---|
-   | red (5 V) | VCC |
-   | black | GND |
-   | yellow (G13) | SDA |
-   | white (G15) | SCL |
+```
+                       ┌──────────────┐
+ Port B red (5 V) ─────┤ VIN          │
+ Port B black (GND) ───┤ GND   AMS1117├──── OUT (3.3 V) ──┬── HX711 VCC
+                       └──────────────┘                   └── PN532 VCC
+```
 
-3. Power the Dial on. The reader is only probed at boot: if it is plugged in while the Dial is running, restart it.
+| From | To |
+|---|---|
+| Port B, red (5 V) | regulator **VIN** |
+| Port B, black (GND) | regulator **GND**, HX711 **GND**, PN532 **GND** |
+| regulator **OUT** (3.3 V) | HX711 **VCC**, PN532 **VCC** |
+| Port B, yellow (G2) | HX711 **DT** |
+| Port B, white (G1) | HX711 **SCK** |
+| Port A, yellow (G13) | PN532 **SDA** |
+| Port A, white (G15) | PN532 **SCL** |
+| Port A, black (GND) | PN532 **GND** (common ground) |
+| Port A, red (5 V) | **not connected** |
 
-> ⚠️ The Grove port supplies **5 V**, while ESP32 pins only accept 3.3 V. Before wiring, check that the module's I2C
-> pull-up resistors are not tied to 5 V.
+Load cell to HX711: red → **E+**, black → **E−**, white → **A−**, green → **A+**.
+
+Set the PN532 DIP switches to **I2C** before powering it. The PN532 is only probed at boot: if it is plugged in
+while the Dial is running, restart the Dial.
 
 ### Power
 
-- USB-C (5 V) for flashing and when docked; the 200 mAh LiPo charges from it.
-- On battery, the Dial powers on with its **WAKE** button and stays on because the firmware holds GPIO46 high.
-  There is no sleep / power-off logic in the firmware yet, so the battery runs down while the screen and the reader
-  are on.
+USB-C 5 V, 1 A or more. The Dial, the PN532 and the HX711 draw roughly 0.5 A at peak (estimate). The Dial can also
+be fed 6–36 V DC on its rear terminal; check with a multimeter that the Grove ports then still supply 5 V before
+relying on it.
 
 ## Why an external PN532
 
@@ -77,11 +93,30 @@ Home Assistant entity names stay in English.
 
 ## Controls
 
-- **Scan**: hold the back of the Dial (PN532 side) near the spool's centre hole, where Bambu tags sit.
+- **Scan**: lay the spool flat on the platter, centred: Bambu tags sit near the hub, right above the PN532.
 - **Short press**: filament card ⇄ details. On the idle screen: toggles the signal diagnostic.
 - **Encoder**: on the filament card, opens the details; on the details, scrolls the list.
-- **Long press**: adds the spool to BambuBuddy if it is unknown, otherwise goes back to the idle screen.
+- **Long press**: on the idle screen, tares the scale; on the filament card, adds the spool to BambuBuddy if it is
+  unknown, otherwise goes back to the idle screen.
 - **Touch**: tap the filament card → details, tap the details header → back, "Add" button.
+
+## Scale
+
+The weight is computed as `(raw - tare) * factor`, with the tare and factor stored by BambuBuddy (SpoolBuddy scale
+protocol, `components/spoolbuddy` + `spool-reader-dial/scale.yaml`):
+
+1. **Tare**: empty platter, then long press on the idle screen (or the "Scale tare" button in Home Assistant, or
+   "Tare" in BambuBuddy's SpoolBuddy page).
+2. **Calibrate** once from BambuBuddy's SpoolBuddy page with a known weight: the Dial reports its raw readings,
+   BambuBuddy computes the factor and sends it back with the next heartbeat (within 15 s).
+3. The idle screen shows the weight on the platter ("Scale not calibrated" until step 2), and Home Assistant gets a
+   "Scale weight" sensor.
+4. **Weighing a spool**: when a scanned spool is known to BambuBuddy and the reading is stable (within 2 g over
+   1 s, more than 50 g), the Dial sends the weight to BambuBuddy, which updates the spool's used / remaining
+   filament (weight on the scale minus the empty spool weight). The remaining weight on the filament card is refreshed
+   and the Dial beeps.
+
+Readings are reported to BambuBuddy at most once per second, only when the weight changes by 2 g or more.
 
 ## NTAG tags
 
@@ -112,7 +147,7 @@ calibration via `extrusion_cali_sel`).
 
 The Dial registers itself with BambuBuddy as a SpoolBuddy device (`components/spoolbuddy`,
 `spool-reader-dial/spoolbuddy.yaml`): it shows up in BambuBuddy's SpoolBuddy devices as `spool-reader-dial`
-(device id `esphome-spool-reader`, PN532 over I2C, no scale) and sends a heartbeat every 15 s (BambuBuddy marks a
+(device id `esphome-spool-reader`, PN532 over I2C, with scale) and sends a heartbeat every 15 s (BambuBuddy marks a
 device offline after 30 s). Requests run in a background task, so the UI never freezes. The sync icon on the idle
 screen shows the link: green = online, orange = error, grey = connecting.
 
@@ -136,9 +171,9 @@ hence the sound. No spool is read or synced while the diagnostic is on.
 With the internal reader, the margin is the number of receiver-gain steps at which the tag still answers; with the
 PN532 only the reliability is measured.
 
-## Handle (3D model)
+## Station (3D model)
 
-A 3D-printed handle for the Dial and the PN532 will live in [`hardware/handle/`](hardware/handle/).
+The 3D-printed station (scale platter, PN532 under its centre, Dial on the side) will live in [`hardware/station/`](hardware/station/).
 
 ## Colour / density tables
 

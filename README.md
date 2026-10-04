@@ -6,8 +6,9 @@ An ESPHome-based NFC spool reader for Bambu Lab filaments, running on a **Wavesh
 
 > **M5Stack Dial adaptation** — this branch also runs on an [M5Stack Dial](https://docs.m5stack.com/en/core/M5Dial)
 > (round touch screen, rotary encoder, buzzer). The Dial's internal NFC chip was tried first but its range is too short
-> for Bambu tags, so the Dial build uses an external PN532 on its Grove port. It also reads NTAG tags and includes a
-> signal diagnostic. See **[README-dial.md](README-dial.md)**.
+> for Bambu tags, so the Dial build uses an external PN532 on its Grove port, plus a load-cell scale. It registers
+> with BambuBuddy as a SpoolBuddy device (NFC + scale), reads NTAG tags and includes a signal diagnostic.
+> See **[README-dial.md](README-dial.md)**.
 
 ---
 
@@ -87,11 +88,13 @@ This selects the SPI interface on the PN532 module. Make sure to set these befor
 | Display | 1.28" round 240×240 GC9A01 via SPI |
 | Touch | FT3267 via I2C (`0x38`) |
 | Controls | rotary encoder, built-in button, buzzer |
-| NFC Reader | PN532 module ("NFC V3", red), **I2C** on Grove port A (`0x24`) |
-| Cable | Grove (HY2.0-4P) to female Dupont |
-| Battery | 3.7 V LiPo 200 mAh on the Dial's battery connector (MX1.25-2P) |
+| NFC Reader | PN532 module ("NFC V3", red), **I2C** on Grove port A (`0x24`), powered at 3.3 V |
+| Scale | 5 kg bar load cell + HX711 module on Grove port B, powered at 3.3 V |
+| 3.3 V regulator | AMS1117-3.3 mini module fed from the Grove 5 V (powers the PN532 and the HX711) |
+| Cables | 2 × Grove (HY2.0-4P) to female Dupont |
+| Power supply | USB-C 5 V, 1 A or more |
 | External button | push button (wiring and function to be defined) |
-| Enclosure | 3D-printed handle holding the Dial and the PN532 ([`hardware/handle/`](hardware/handle/)) |
+| Enclosure | 3D-printed station: scale platter, PN532 under it, Dial on the side ([`hardware/station/`](hardware/station/)) |
 
 The PN532 DIP switches must be set to **I2C** for this build (not SPI). Pin mapping, wiring and power notes are in
 [README-dial.md](README-dial.md#hardware).
@@ -238,7 +241,7 @@ spool-reader-dial/         # Dial hardware, NFC, UI pages, NTAG lookup, signal d
 components/
   bambu_rc522/             # NFC component for the Dial (PN532 I2C or internal WS1850S)
 hardware/
-  handle/                  # 3D-printed handle (Dial + PN532)
+  station/                 # 3D-printed station (scale platter, PN532, Dial)
 ```
 
 ---

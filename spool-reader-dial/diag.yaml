@@ -19,6 +19,7 @@ switch:
       - lambda: |-
           lv_obj_add_flag(id(lbl_idle_title), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(lbl_idle_hint), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(lbl_scale), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(lbl_diag), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(bar_diag), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(lbl_diag_sub), LV_OBJ_FLAG_HIDDEN);
@@ -34,6 +35,7 @@ switch:
           id(nfc_reader).set_diag_mode(false);
           lv_obj_clear_flag(id(lbl_idle_title), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(lbl_idle_hint), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(lbl_scale), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(lbl_diag), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(bar_diag), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(lbl_diag_sub), LV_OBJ_FLAG_HIDDEN);

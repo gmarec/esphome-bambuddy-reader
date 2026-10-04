@@ -30,8 +30,13 @@ in English.**
   upstream files, left as-is to ease merges).
 - `components/spoolbuddy/`: registers with BambuBuddy as a SpoolBuddy device + heartbeat every 15 s
   (offline threshold 30 s), esp_http_client in a FreeRTOS task on core 0. device_id `esphome-spool-reader`
-  (same as the shared tag-scanned calls). Heartbeat returns `pending_command` (e.g. `write_tag`), logged only.
-- `hardware/handle/`: 3D-printed handle (Dial + PN532), not designed yet.
+  (same as the shared tag-scanned calls). Heartbeat returns `pending_command` (`tare` handled, others logged)
+  and the scale calibration (`tare_offset`, `calibration_factor`, stored by BambuBuddy).
+  Scale protocol: weight = (raw - tare) * factor, 5-sample average, stable = spread < 2 g over 1 s,
+  `/scale/reading` at most 1/s on a 2 g change, `/scale/update-spool-weight` on request, keep-alive HTTP client.
+- `spool-reader-dial/scale.yaml`: HX711 on Grove port B (DT G2 with pull-up, SCK G1), weight on the idle screen,
+  "Scale weight" sensor, tare (long press on idle / HA button), `scale_sync_weight` after a known spool is scanned.
+- `hardware/station/`: 3D-printed station (scale platter, PN532 under it, Dial on the side), not designed yet.
 
 ## Validated on hardware (ESPHome 2026.6.5)
 - Build, Wi-Fi, display, touch, Bambu tag reading and BambuBuddy sync with the internal reader.

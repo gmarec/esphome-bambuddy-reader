@@ -13,6 +13,7 @@ spoolbuddy:
   nfc_reader: nfc_reader
   nfc_reader_type: "${nfc_reader}"
   nfc_connection: i2c
+  scale: scale_raw
 
 interval:
   - interval: 2s

@@ -56,6 +56,7 @@ packages:
   bambuddy: !include spool-reader/api-bambuddy.yaml
   bambuddy_ntag: !include spool-reader-dial/api-ntag.yaml
   spoolbuddy: !include spool-reader-dial/spoolbuddy.yaml
+  scale: !include spool-reader-dial/scale.yaml
   styles: !include spool-reader-dial/ui-styles.yaml
   page_idle: !include spool-reader-dial/page-idle.yaml
   page_filament: !include spool-reader-dial/page-filament.yaml

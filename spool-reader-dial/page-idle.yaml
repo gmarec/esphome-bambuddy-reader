@@ -105,6 +105,14 @@ lvgl:
             width: 200
             text: "${t_scan_hint}"
             styles: style_text_secondary
+        # Weight on the scale (spool-reader-dial/scale.yaml)
+        - label:
+            id: lbl_scale
+            align: CENTER
+            y: 86
+            width: 200
+            text: ""
+            styles: style_text_secondary
         # Signal diagnostic mode (hidden by default)
         - label:
             id: lbl_diag

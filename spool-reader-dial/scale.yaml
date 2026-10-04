@@ -1,0 +1,98 @@
+## Scale: 5 kg load cell + HX711 on Grove port B (yellow G2 = DT, white G1 = SCK), HX711 powered at 3.3 V.
+## Weight = (raw - tare) * factor; tare and factor are stored by BambuBuddy (SpoolBuddy scale protocol, see
+## components/spoolbuddy). Calibrate with a known weight from BambuBuddy's SpoolBuddy page.
+## - Idle screen shows the weight on the scale; long press on the idle screen = tare.
+## - When a scanned spool is known to BambuBuddy and the weight is stable, its weight is sent to BambuBuddy,
+##   which updates the remaining filament (weight on scale - empty spool weight).
+
+# The hx711 component warns on every poll while the HX711 is not ready (e.g. not wired yet)
+logger:
+  logs:
+    hx711: ERROR
+
+sensor:
+  # Raw ADC counts, no filters: averaging, tare and calibration are done by the spoolbuddy component
+  - platform: hx711
+    id: scale_raw
+    # Pull-up: with no HX711 wired, DT stays high ("not ready") instead of floating and producing noise
+    dout_pin:
+      number: GPIO2
+      mode:
+        input: true
+        pullup: true
+    clk_pin: GPIO1
+    gain: 128
+    update_interval: 200ms
+    internal: true
+  - platform: template
+    name: "Scale weight"
+    icon: mdi:scale
+    unit_of_measurement: "g"
+    device_class: weight
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: 2s
+    filters:
+      - delta: 2.0
+    lambda: |-
+      auto *sb = id(spoolbuddy_device);
+      if (!sb->is_scale_ok() || !sb->is_scale_calibrated()) return {};
+      return sb->get_weight();
+
+button:
+  - platform: template
+    name: "Scale tare"
+    icon: mdi:scale-balance
+    on_press:
+      - lambda: 'id(spoolbuddy_device).tare();'
+
+script:
+  # Sends the spool's weight to BambuBuddy once the reading is stable (spool resting on the scale)
+  - id: scale_sync_weight
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(bb_spool_found) && id(bb_spool_id) > 0 && id(spoolbuddy_device).is_scale_calibrated();
+          then:
+            - wait_until:
+                condition:
+                  lambda: |-
+                    return id(spoolbuddy_device).is_weight_stable() && id(spoolbuddy_device).get_weight() > 50.0f;
+                timeout: 10s
+            - if:
+                condition:
+                  lambda: |-
+                    return id(spoolbuddy_device).is_weight_stable() && id(spoolbuddy_device).get_weight() > 50.0f;
+                then:
+                  - lambda: 'id(spoolbuddy_device).request_spool_weight_update(id(bb_spool_id));'
+
+interval:
+  - interval: 500ms
+    then:
+      - lambda: |-
+          auto *sb = id(spoolbuddy_device);
+          // Weight on the idle screen
+          static char buf[32];
+          if (!sb->is_scale_ok())
+            buf[0] = '\0';
+          else if (!sb->is_scale_calibrated())
+            snprintf(buf, sizeof(buf), "%s", "${t_scale_uncal}");
+          else
+            snprintf(buf, sizeof(buf), "%.0f g", std::max(0.0f, sb->get_weight()));
+          lv_label_set_text(id(lbl_scale), buf);
+
+          // Result of a spool weight update: refresh the remaining weight
+          float used;
+          if (sb->take_weight_used(used)) {
+            float label = id(spool_weight_sens).state;
+            if (std::isnan(label) || label <= 0) label = 1000.0f;
+            float remaining = std::max(0.0f, label - used);
+            id(bb_remaining_weight).publish_state(remaining);
+            char r[16];
+            snprintf(r, sizeof(r), "%.0f g", remaining);
+            lv_label_set_text(id(lbl_remaining), r);
+            lv_label_set_text(id(lbl_detail_remaining), r);
+            id(buzzer).play("w:d=32,o=6,b=200:g");
+          }

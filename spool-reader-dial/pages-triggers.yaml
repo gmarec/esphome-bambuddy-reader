@@ -13,8 +13,9 @@ bambu_rc522:
     then:
       - rtttl.play: "ok:d=32,o=6,b=200:e,a"
       - script.execute: show_filament
-      # Sync BambuBuddy
+      # Sync BambuBuddy, then weigh the spool if it is known
       - script.execute: bambuddy_sync
+      - script.execute: scale_sync_weight
   # NTAG tag (non-Bambu): identified by its UID with BambuBuddy
   on_ntag_tag:
     then:
