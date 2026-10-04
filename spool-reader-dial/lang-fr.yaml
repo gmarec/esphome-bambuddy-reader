@@ -1,7 +1,7 @@
 # On-screen text, French translation. Same keys as lang-en.yaml.
 # Only characters present in the fonts (ASCII + the accents listed in spool-reader/ui-fonts.yaml).
 t_scan_title: "Scanner un filament"
-t_scan_hint: "Approchez d'une bobine"
+t_scan_hint: "Posez sur le plateau"
 t_tag_not_read: "Tag non lu"
 t_unknown_tag: "Tag inconnu"
 t_bb_unreachable: "BambuBuddy injoignable"

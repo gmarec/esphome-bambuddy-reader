@@ -9,7 +9,7 @@ spoolbuddy:
   # Same device_id as the /nfc/tag-scanned calls (spool-reader/api-bambuddy.yaml, api-ntag.yaml),
   # so BambuBuddy attributes the scans to this device
   device_id: esphome-spool-reader
-  hostname: spool-reader-dial
+  hostname: spool-station
   nfc_reader: nfc_reader
   nfc_reader_type: "${nfc_reader}"
   nfc_connection: i2c

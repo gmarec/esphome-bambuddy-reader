@@ -146,7 +146,7 @@ calibration via `extrusion_cali_sel`).
 ### SpoolBuddy device
 
 The Dial registers itself with BambuBuddy as a SpoolBuddy device (`components/spoolbuddy`,
-`spool-reader-dial/spoolbuddy.yaml`): it shows up in BambuBuddy's SpoolBuddy devices as `spool-reader-dial`
+`spool-reader-dial/spoolbuddy.yaml`): it shows up in BambuBuddy's SpoolBuddy devices as `spool-station`
 (device id `esphome-spool-reader`, PN532 over I2C, with scale) and sends a heartbeat every 15 s (BambuBuddy marks a
 device offline after 30 s). Requests run in a background task, so the UI never freezes. The sync icon on the idle
 screen shows the link: green = online, orange = error, grey = connecting.

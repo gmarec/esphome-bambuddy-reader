@@ -1,6 +1,6 @@
 # On-screen text, English (default). Same keys as lang-fr.yaml.
 t_scan_title: "Scan a filament"
-t_scan_hint: "Hold near a spool"
+t_scan_hint: "Place on the scale"
 t_tag_not_read: "Tag not read"
 t_unknown_tag: "Unknown tag"
 t_bb_unreachable: "BambuBuddy unreachable"
