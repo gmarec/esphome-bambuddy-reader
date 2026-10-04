@@ -15,7 +15,6 @@ device (NFC + scale).
 | 3.3 V regulator | AMS1117-3.3 mini module (VIN / OUT / GND, 800 mA max), fed from the Grove 5 V |
 | Cables | 2 × Grove (HY2.0-4P) to female Dupont (ports A and B) |
 | Power supply | USB-C 5 V, 1 A or more (no battery) |
-| External button | push button — wiring and function to be defined |
 | Enclosure | 3D-printed station: scale platter, PN532 under it, Dial on the side ([`hardware/station/`](hardware/station/)) |
 
 ### Pins used

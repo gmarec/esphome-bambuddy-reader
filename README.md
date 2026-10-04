@@ -93,7 +93,6 @@ This selects the SPI interface on the PN532 module. Make sure to set these befor
 | 3.3 V regulator | AMS1117-3.3 mini module fed from the Grove 5 V (powers the PN532 and the HX711) |
 | Cables | 2 × Grove (HY2.0-4P) to female Dupont |
 | Power supply | USB-C 5 V, 1 A or more |
-| External button | push button (wiring and function to be defined) |
 | Enclosure | 3D-printed station: scale platter, PN532 under it, Dial on the side ([`hardware/station/`](hardware/station/)) |
 
 The PN532 DIP switches must be set to **I2C** for this build (not SPI). Pin mapping, wiring and power notes are in
